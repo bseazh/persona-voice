@@ -1,0 +1,4 @@
+# Merge this site block into the server's existing Caddyfile.
+phone.hehaizhao.site {
+	reverse_proxy 127.0.0.1:5050
+}
