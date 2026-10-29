@@ -2,17 +2,11 @@
 set -euo pipefail
 
 revision="${1:?revision is required}"
-archive="${2:?image archive is required}"
 project_dir="/home/ubuntu/Project/persona-voice"
-new_image="persona-voice:${revision}"
+new_image="ghcr.io/bseazh/persona-voice:${revision}"
 old_image_id="$(sudo docker image inspect persona-voice:latest --format '{{.Id}}' 2>/dev/null || true)"
 
-cleanup() {
-  rm -f -- "$archive"
-}
-trap cleanup EXIT
-
-gzip -dc -- "$archive" | sudo docker load
+sudo docker pull "$new_image"
 sudo docker tag "$new_image" persona-voice:latest
 
 cd "$project_dir"
@@ -38,4 +32,3 @@ fi
 
 sudo docker image prune -f >/dev/null
 echo "Deployed ${revision} successfully"
-

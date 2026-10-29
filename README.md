@@ -48,7 +48,7 @@ The public deployment remains mock-only. A real call requires every provider cre
 
 Every push to `main` runs `.github/workflows/deploy.yml`. GitHub Actions tests the API, audits frontend dependencies, builds a production image, synchronizes the source, and deploys to Tencent Cloud over a dedicated SSH key. The workflow verifies both the local container health and the public HTTPS endpoint; a failed container health check restores the previous image.
 
-The server cannot currently reach Docker Hub reliably, so CI transfers the built `linux/amd64` image directly instead of pulling from a registry. Routine server checks:
+The server cannot currently reach Docker Hub reliably, so CI publishes the image to GitHub Container Registry. The server authenticates with the workflow's short-lived token, pulls the exact commit image, and immediately logs out. Routine server checks:
 
 ```bash
 cd /home/ubuntu/Project/persona-voice

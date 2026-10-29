@@ -11,6 +11,7 @@ concurrency:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   deploy:
@@ -18,12 +19,12 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: true
 
       - name: Run API tests
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -37,11 +38,14 @@ jobs:
         run: npm audit --omit=dev
         working-directory: web
 
-      - name: Build production image
+      - name: Build and publish production image
+        env:
+          GHCR_TOKEN: ${{ github.token }}
         run: |
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker build --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
-            -t "persona-voice:${GITHUB_SHA}" .
-          docker save "persona-voice:${GITHUB_SHA}" | gzip -1 > "/tmp/persona-voice-${GITHUB_SHA}.tar.gz"
+            -t "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA}" .
+          docker push "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA}"
 
       - name: Configure deployment SSH
         env:
@@ -54,7 +58,7 @@ jobs:
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Sync source and image
+      - name: Sync source
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
@@ -68,19 +72,18 @@ jobs:
             --exclude='data/' \
             --exclude='persona-voice-*.tar.gz' \
             -e "$SSH" ./ "$DEPLOY_USER@$DEPLOY_HOST:/home/ubuntu/Project/persona-voice/"
-          scp -i ~/.ssh/persona_voice_deploy -o IdentitiesOnly=yes \
-            "/tmp/persona-voice-${GITHUB_SHA}.tar.gz" \
-            "$DEPLOY_USER@$DEPLOY_HOST:/tmp/persona-voice-${GITHUB_SHA}.tar.gz"
 
       - name: Activate release and verify health
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          GHCR_TOKEN: ${{ github.token }}
         run: |
-          ssh -i ~/.ssh/persona_voice_deploy -o IdentitiesOnly=yes \
+          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/persona_voice_deploy -o IdentitiesOnly=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" \
-            "bash /home/ubuntu/Project/persona-voice/scripts/deploy-server.sh '${GITHUB_SHA}' '/tmp/persona-voice-${GITHUB_SHA}.tar.gz'"
+            "sudo docker login ghcr.io -u '${GITHUB_ACTOR}' --password-stdin >/dev/null && \
+             bash /home/ubuntu/Project/persona-voice/scripts/deploy-server.sh '${GITHUB_SHA}'; \
+             status=\$?; sudo docker logout ghcr.io >/dev/null; exit \$status"
 
       - name: Verify public HTTPS endpoint
         run: curl --fail --show-error --silent --retry 5 --retry-delay 2 https://phone.hehaizhao.site/api/health
-
