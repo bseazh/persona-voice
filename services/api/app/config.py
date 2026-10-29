@@ -25,6 +25,10 @@ class Settings:
         required = ("LIVEKIT_URL", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET", "SIP_OUTBOUND_TRUNK_ID")
         return all(os.getenv(name) and "REPLACE_ME" not in os.getenv(name, "") for name in required)
 
+    @property
+    def stepfun_configured(self) -> bool:
+        required = ("STEPFUN_API_KEY", "STT_MODEL", "TTS_MODEL", "TTS_VOICE")
+        return all(os.getenv(name) and "REPLACE" not in os.getenv(name, "") for name in required)
+
 
 settings = Settings()
-

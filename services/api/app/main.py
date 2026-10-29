@@ -54,6 +54,7 @@ def health() -> dict:
         "database": "ready",
         "real_calls_enabled": settings.enable_real_calls,
         "livekit_configured": settings.livekit_configured,
+        "stepfun_configured": settings.stepfun_configured,
         "mode": "real-ready" if settings.enable_real_calls and settings.livekit_configured else "mock",
     }
 
@@ -110,4 +111,3 @@ if static_dir.exists():
         if candidate.is_file():
             return FileResponse(candidate)
         return FileResponse(static_dir / "index.html")
-
