@@ -1,0 +1,48 @@
+{
+	default_sni 134.175.154.244
+}
+
+hehaizhao.site, www.hehaizhao.site {
+	root * /home/ubuntu/Project/bseazh.github.io
+	encode gzip
+    header Cache-Control "no-cache, no-store, must-revalidate"
+	try_files {path} {path}/index.html /index.html
+	file_server
+}
+
+notes.hehaizhao.site {
+	reverse_proxy 127.0.0.1:9000
+}
+
+# Persona Voice mock workbench
+phone.hehaizhao.site {
+	reverse_proxy 127.0.0.1:5050
+}
+
+# LawyerBuddy paid API
+snorlaxden.fun {
+    reverse_proxy 127.0.0.1:3000
+}
+
+# PrivacyGuard standard offline packages
+privacyguard.snorlaxden.fun {
+	root * /home/ubuntu/Project/Documents/PrivacyGuard
+	encode gzip
+	file_server browse
+}
+
+# Public-IP ACME challenge for payment clients using Fake-IP DNS.
+http://134.175.154.244 {
+	root * /var/www/lawyerbuddy-ip-acme
+	file_server
+}
+
+https://134.175.154.244 {
+	tls /etc/caddy/ip-tls/fullchain.pem /etc/caddy/ip-tls/privkey.pem
+	reverse_proxy 127.0.0.1:3000
+}
+
+# Snorlaxden digital garden
+blog.snorlaxden.fun {
+    reverse_proxy 127.0.0.1:3999
+}

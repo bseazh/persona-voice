@@ -1,0 +1,19 @@
+services:
+  persona-voice:
+    image: persona-voice:latest
+    build: .
+    restart: unless-stopped
+    ports:
+      - "5050:8000"
+    environment:
+      APP_ENV: production
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      DATABASE_PATH: /app/data/calls.db
+      ENABLE_REAL_CALLS: "false"
+      MOCK_STEP_DELAY_SECONDS: "0.8"
+    volumes:
+      - persona_voice_data:/app/data
+
+volumes:
+  persona_voice_data:
