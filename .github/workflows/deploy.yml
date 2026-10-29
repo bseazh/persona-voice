@@ -67,6 +67,10 @@ jobs:
             --exclude='.git/' \
             --exclude='.env' \
             --exclude='.env.local' \
+            --exclude='.venv/' \
+            --exclude='web/node_modules/' \
+            --exclude='web/.next/' \
+            --exclude='vendor/' \
             --exclude='data/' \
             --exclude='runtime/' \
             --exclude='runtime.previous/' \
