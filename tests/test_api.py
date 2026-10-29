@@ -22,6 +22,7 @@ def test_health_and_mock_lifecycle():
         health = client.get("/api/health")
         assert health.status_code == 200
         assert health.json()["real_calls_enabled"] is False
+        assert health.json()["sip_configured"] is False
         created = client.post("/api/calls", json=payload(), headers={"Idempotency-Key": "test-one"})
         assert created.status_code == 202
         call_id = created.json()["call_id"]

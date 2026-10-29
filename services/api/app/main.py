@@ -54,9 +54,10 @@ def health() -> dict:
         "database": "ready",
         "real_calls_enabled": settings.enable_real_calls,
         "livekit_configured": settings.livekit_configured,
+        "sip_configured": settings.sip_configured,
         "stepfun_configured": settings.stepfun_configured,
         "elevenlabs_configured": settings.elevenlabs_configured,
-        "mode": "real-ready" if settings.enable_real_calls and settings.livekit_configured else "mock",
+        "mode": "real-ready" if settings.enable_real_calls and settings.livekit_configured and settings.sip_configured else "mock",
     }
 
 
@@ -78,7 +79,9 @@ async def create_call(payload: CreateCall, idempotency_key: str | None = Header(
         if payload.phone_number not in settings.allowed_numbers:
             raise HTTPException(403, "号码不在外呼白名单")
         if not settings.livekit_configured:
-            raise HTTPException(503, "LiveKit/SIP 尚未配置")
+            raise HTTPException(503, "LiveKit 尚未配置")
+        if not settings.sip_configured:
+            raise HTTPException(503, "SIP 外呼线路尚未配置")
         raise HTTPException(503, "真实 dispatch 尚未接入；为防止误拨，本次未发起呼叫")
 
     call_id = f"call_{uuid.uuid4().hex[:20]}"

@@ -22,7 +22,12 @@ class Settings:
 
     @property
     def livekit_configured(self) -> bool:
-        required = ("LIVEKIT_URL", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET", "SIP_OUTBOUND_TRUNK_ID")
+        required = ("LIVEKIT_URL", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET")
+        return all(os.getenv(name) and "REPLACE_ME" not in os.getenv(name, "") for name in required)
+
+    @property
+    def sip_configured(self) -> bool:
+        required = ("SIP_OUTBOUND_TRUNK_ID",)
         return all(os.getenv(name) and "REPLACE_ME" not in os.getenv(name, "") for name in required)
 
     @property
