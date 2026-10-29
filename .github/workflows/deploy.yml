@@ -1,0 +1,86 @@
+name: Test and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: persona-voice-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Run API tests
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: pip install -r services/api/requirements-dev.txt
+
+      - name: Test API
+        run: pytest -q
+
+      - name: Audit frontend dependencies
+        run: npm audit --omit=dev
+        working-directory: web
+
+      - name: Build production image
+        run: |
+          docker build --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            -t "persona-voice:${GITHUB_SHA}" .
+          docker save "persona-voice:${GITHUB_SHA}" | gzip -1 > "/tmp/persona-voice-${GITHUB_SHA}.tar.gz"
+
+      - name: Configure deployment SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/persona_voice_deploy
+          chmod 600 ~/.ssh/persona_voice_deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Sync source and image
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          SSH="ssh -i ~/.ssh/persona_voice_deploy -o IdentitiesOnly=yes"
+          $SSH "$DEPLOY_USER@$DEPLOY_HOST" 'mkdir -p /home/ubuntu/Project/persona-voice'
+          rsync -az --delete \
+            --exclude='.git/' \
+            --exclude='.env' \
+            --exclude='.env.local' \
+            --exclude='data/' \
+            --exclude='persona-voice-*.tar.gz' \
+            -e "$SSH" ./ "$DEPLOY_USER@$DEPLOY_HOST:/home/ubuntu/Project/persona-voice/"
+          scp -i ~/.ssh/persona_voice_deploy -o IdentitiesOnly=yes \
+            "/tmp/persona-voice-${GITHUB_SHA}.tar.gz" \
+            "$DEPLOY_USER@$DEPLOY_HOST:/tmp/persona-voice-${GITHUB_SHA}.tar.gz"
+
+      - name: Activate release and verify health
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          ssh -i ~/.ssh/persona_voice_deploy -o IdentitiesOnly=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "bash /home/ubuntu/Project/persona-voice/scripts/deploy-server.sh '${GITHUB_SHA}' '/tmp/persona-voice-${GITHUB_SHA}.tar.gz'"
+
+      - name: Verify public HTTPS endpoint
+        run: curl --fail --show-error --silent --retry 5 --retry-delay 2 https://phone.hehaizhao.site/api/health
+

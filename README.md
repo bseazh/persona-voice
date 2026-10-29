@@ -46,7 +46,9 @@ The public deployment remains mock-only. A real call requires every provider cre
 
 ## Tencent Cloud operations
 
-The server cannot currently reach Docker Hub reliably, so deployment uses an offline `linux/amd64` image built on the developer machine. Routine server checks:
+Every push to `main` runs `.github/workflows/deploy.yml`. GitHub Actions tests the API, audits frontend dependencies, builds a production image, synchronizes the source, and deploys to Tencent Cloud over a dedicated SSH key. The workflow verifies both the local container health and the public HTTPS endpoint; a failed container health check restores the previous image.
+
+The server cannot currently reach Docker Hub reliably, so CI transfers the built `linux/amd64` image directly instead of pulling from a registry. Routine server checks:
 
 ```bash
 cd /home/ubuntu/Project/persona-voice
