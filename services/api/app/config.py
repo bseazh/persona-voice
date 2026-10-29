@@ -30,5 +30,10 @@ class Settings:
         required = ("STEPFUN_API_KEY", "STT_MODEL", "TTS_MODEL", "TTS_VOICE")
         return all(os.getenv(name) and "REPLACE" not in os.getenv(name, "") for name in required)
 
+    @property
+    def elevenlabs_configured(self) -> bool:
+        required = ("ELEVENLABS_API_KEY", "STT_MODEL", "TTS_MODEL", "TTS_VOICE_ID")
+        return all(os.getenv(name) and "REPLACE" not in os.getenv(name, "") for name in required)
+
 
 settings = Settings()

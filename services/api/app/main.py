@@ -55,6 +55,7 @@ def health() -> dict:
         "real_calls_enabled": settings.enable_real_calls,
         "livekit_configured": settings.livekit_configured,
         "stepfun_configured": settings.stepfun_configured,
+        "elevenlabs_configured": settings.elevenlabs_configured,
         "mode": "real-ready" if settings.enable_real_calls and settings.livekit_configured else "mock",
     }
 

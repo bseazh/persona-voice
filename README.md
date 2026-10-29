@@ -37,6 +37,8 @@ Run tests with `pytest -q`. See `MANUAL_SETUP.md` before enabling a real call. A
 
 Run the real StepFun TTS-to-ASR round-trip with `python scripts/smoke_stepfun.py`. This request is billable and fails clearly when the account has no quota. A successful run writes `BigApple输出/stepfun-roundtrip.wav` and prints the final transcript without printing the API key.
 
+The active speech provider is ElevenLabs. Run its billable end-to-end check with `python scripts/smoke_elevenlabs.py`; it synthesizes Chinese speech with `eleven_v4`, sends the generated MP3 to `scribe_v2`, and requires the final transcript to contain the expected phrase. The output is written to `BigApple输出/elevenlabs-roundtrip.mp3` without logging the API key.
+
 ## API
 
 - `POST /api/calls` creates a mock or explicitly authorized real call request.
