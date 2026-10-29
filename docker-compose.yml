@@ -14,6 +14,8 @@ services:
       MOCK_STEP_DELAY_SECONDS: "0.8"
     volumes:
       - persona_voice_data:/app/data
+      - ./runtime/app:/app/app:ro
+      - ./runtime/static:/app/static:ro
 
 volumes:
   persona_voice_data:

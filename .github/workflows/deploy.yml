@@ -11,7 +11,6 @@ concurrency:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   deploy:
@@ -34,18 +33,17 @@ jobs:
       - name: Test API
         run: pytest -q
 
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: web
+
       - name: Audit frontend dependencies
         run: npm audit --omit=dev
         working-directory: web
 
-      - name: Build and publish production image
-        env:
-          GHCR_TOKEN: ${{ github.token }}
-        run: |
-          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          docker build --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
-            -t "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA}" .
-          docker push "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA}"
+      - name: Build frontend
+        run: npm run build
+        working-directory: web
 
       - name: Configure deployment SSH
         env:
@@ -70,6 +68,8 @@ jobs:
             --exclude='.env' \
             --exclude='.env.local' \
             --exclude='data/' \
+            --exclude='runtime/' \
+            --exclude='runtime.previous/' \
             --exclude='persona-voice-*.tar.gz' \
             -e "$SSH" ./ "$DEPLOY_USER@$DEPLOY_HOST:/home/ubuntu/Project/persona-voice/"
 
@@ -77,13 +77,10 @@ jobs:
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          GHCR_TOKEN: ${{ github.token }}
         run: |
-          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/persona_voice_deploy -o IdentitiesOnly=yes \
+          ssh -i ~/.ssh/persona_voice_deploy -o IdentitiesOnly=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" \
-            "sudo docker login ghcr.io -u '${GITHUB_ACTOR}' --password-stdin >/dev/null && \
-             bash /home/ubuntu/Project/persona-voice/scripts/deploy-server.sh '${GITHUB_SHA}'; \
-             status=\$?; sudo docker logout ghcr.io >/dev/null; exit \$status"
+            "bash /home/ubuntu/Project/persona-voice/scripts/deploy-server.sh '${GITHUB_SHA}'"
 
       - name: Verify public HTTPS endpoint
         run: curl --fail --show-error --silent --retry 5 --retry-delay 2 https://phone.hehaizhao.site/api/health

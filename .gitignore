@@ -13,3 +13,6 @@ web/out/
 .bigapple/
 .claude/
 000-Assets/
+runtime/
+runtime.previous/
+.runtime-*/

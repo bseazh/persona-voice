@@ -46,9 +46,9 @@ The public deployment remains mock-only. A real call requires every provider cre
 
 ## Tencent Cloud operations
 
-Every push to `main` runs `.github/workflows/deploy.yml`. GitHub Actions tests the API, audits frontend dependencies, builds a production image, synchronizes the source, and deploys to Tencent Cloud over a dedicated SSH key. The workflow verifies both the local container health and the public HTTPS endpoint; a failed container health check restores the previous image.
+Every push to `main` runs `.github/workflows/deploy.yml`. GitHub Actions tests the API, audits frontend dependencies, builds the Next.js static export, synchronizes the source and build output, and deploys to Tencent Cloud over a dedicated SSH key. The server atomically switches the container's read-only runtime mounts, verifies local health, and restores the previous runtime if needed. The workflow then verifies the public HTTPS endpoint.
 
-The server cannot currently reach Docker Hub reliably, so CI publishes the image to GitHub Container Registry. The server authenticates with the workflow's short-lived token, pulls the exact commit image, and immediately logs out. Routine server checks:
+This avoids unreliable large image transfers from Docker Hub/GitHub to Tencent Cloud. Python dependency changes in `services/api/requirements.txt` still require rebuilding and importing the base image; ordinary frontend and API source changes deploy automatically. Routine server checks:
 
 ```bash
 cd /home/ubuntu/Project/persona-voice
