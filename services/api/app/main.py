@@ -5,12 +5,13 @@ import base64
 import binascii
 import os
 import uuid
+from collections import OrderedDict
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
@@ -21,6 +22,7 @@ from .store import Store
 
 
 store = Store(settings.database_path)
+conversation_audio: OrderedDict[str, bytes] = OrderedDict()
 
 
 async def run_mock(call_id: str) -> None:
@@ -120,12 +122,29 @@ async def converse(payload: ConversationRequest) -> dict:
     except (ElevenLabsError, DeepSeekError, ValueError) as error:
         status = getattr(error, "status_code", 502)
         raise HTTPException(502 if status >= 500 else status, str(error)) from error
+    audio_id = uuid.uuid4().hex
+    conversation_audio[audio_id] = answer_audio
+    while len(conversation_audio) > 20:
+        conversation_audio.popitem(last=False)
     return {
         "transcript": transcript,
         "answer": answer,
-        "audio_base64": base64.b64encode(answer_audio).decode(),
-        "audio_mime_type": "audio/mpeg",
+        "audio_url": f"/api/conversation/audio/{audio_id}",
     }
+
+
+@app.get("/api/conversation/audio/{audio_id}")
+def conversation_audio_file(audio_id: str) -> Response:
+    if not settings.enable_local_conversation:
+        raise HTTPException(403, "语音对话接口仅在本地启动模式下开放")
+    audio = conversation_audio.get(audio_id)
+    if audio is None:
+        raise HTTPException(404, "回复音频不存在或已经过期")
+    return Response(
+        content=audio,
+        media_type="audio/mpeg",
+        headers={"Cache-Control": "no-store", "Content-Disposition": "inline; filename=reply.mp3"},
+    )
 
 
 @app.post("/api/calls", status_code=202, response_model=CreateCallResponse)

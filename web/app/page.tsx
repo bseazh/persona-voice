@@ -139,31 +139,35 @@ export default function Home() {
         body: JSON.stringify({
           audio_base64: audioBase64,
           mime_type: blob.type || "audio/webm",
-          history: messages.slice(-10),
+          history: messages.slice(-10).map((message) => ({
+            role: message.role,
+            content: message.content.slice(0, 2000),
+          })),
         }),
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body.detail || "语音对话请求失败");
+      if (!res.ok) {
+        const detail = Array.isArray(body.detail)
+          ? body.detail
+              .map((item: { msg?: string }) => item.msg || "参数无效")
+              .join("；")
+          : body.detail;
+        throw new Error(detail || "语音对话请求失败");
+      }
       setMessages((previous) => [
         ...previous,
         { role: "user", content: body.transcript },
         { role: "assistant", content: body.answer },
       ]);
-      const binary = atob(body.audio_base64);
-      const bytes = Uint8Array.from(binary, (character) =>
-        character.charCodeAt(0),
-      );
-      const audioUrl = URL.createObjectURL(
-        new Blob([bytes], { type: body.audio_mime_type || "audio/mpeg" }),
-      );
-      const audio = new Audio(audioUrl);
+      if (typeof body.audio_url !== "string" || !body.audio_url.startsWith("/api/")) {
+        throw new Error("语音回复地址无效");
+      }
+      const audio = new Audio(body.audio_url);
       audioRef.current = audio;
       audio.onended = () => {
-        URL.revokeObjectURL(audioUrl);
         setVoiceState("idle");
       };
       audio.onerror = () => {
-        URL.revokeObjectURL(audioUrl);
         setVoiceState("idle");
         setVoiceError("回复已生成，但音频播放失败");
       };
