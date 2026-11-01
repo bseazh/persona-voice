@@ -149,12 +149,21 @@ export default function Home() {
         { role: "user", content: body.transcript },
         { role: "assistant", content: body.answer },
       ]);
-      const audio = new Audio(
-        `data:${body.audio_mime_type};base64,${body.audio_base64}`,
+      const binary = atob(body.audio_base64);
+      const bytes = Uint8Array.from(binary, (character) =>
+        character.charCodeAt(0),
       );
+      const audioUrl = URL.createObjectURL(
+        new Blob([bytes], { type: body.audio_mime_type || "audio/mpeg" }),
+      );
+      const audio = new Audio(audioUrl);
       audioRef.current = audio;
-      audio.onended = () => setVoiceState("idle");
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+        setVoiceState("idle");
+      };
       audio.onerror = () => {
+        URL.revokeObjectURL(audioUrl);
         setVoiceState("idle");
         setVoiceError("回复已生成，但音频播放失败");
       };
