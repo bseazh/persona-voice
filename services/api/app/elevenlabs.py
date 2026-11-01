@@ -1,6 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import subprocess
+import tempfile
+import time
 import uuid
 from dataclasses import dataclass
 from typing import Callable
@@ -19,11 +24,60 @@ Transport = Callable[[str, str, dict[str, str], bytes, float], tuple[int, bytes]
 
 
 def _transport(method: str, url: str, headers: dict[str, str], body: bytes, timeout: float) -> tuple[int, bytes]:
+    if os.getenv("ELEVENLABS_CURL_CONNECT_TO") and shutil.which("curl"):
+        return _curl_transport(method, url, headers, body, timeout)
+    last_error: httpx.HTTPError | None = None
+    for attempt in range(3):
+        try:
+            response = httpx.request(method, url, headers=headers, content=body, timeout=timeout)
+            return response.status_code, response.content
+        except httpx.HTTPError as error:
+            last_error = error
+            time.sleep(0.5 * (attempt + 1))
+    if shutil.which("curl"):
+        return _curl_transport(method, url, headers, body, timeout)
+    raise ElevenLabsError(502, "ElevenLabs 网络连接失败，已自动重试 3 次") from last_error
+
+
+def _curl_transport(method: str, url: str, headers: dict[str, str], body: bytes, timeout: float) -> tuple[int, bytes]:
+    header_path = body_path = ""
     try:
-        response = httpx.request(method, url, headers=headers, content=body, timeout=timeout)
-        return response.status_code, response.content
-    except httpx.HTTPError as error:
-        raise ElevenLabsError(502, "ElevenLabs network connection failed") from error
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as header_file:
+            os.chmod(header_file.name, 0o600)
+            header_path = header_file.name
+            for name, value in headers.items():
+                header_file.write(f"{name}: {value}\n")
+        with tempfile.NamedTemporaryFile("wb", delete=False) as body_file:
+            os.chmod(body_file.name, 0o600)
+            body_path = body_file.name
+            body_file.write(body)
+        command = [
+            "curl", "--silent", "--show-error", "--request", method,
+            "--url", url, "--header", f"@{header_path}",
+            "--data-binary", f"@{body_path}", "--max-time", str(int(timeout)),
+            "--write-out", "\n%{http_code}",
+        ]
+        connect_to = os.getenv("ELEVENLABS_CURL_CONNECT_TO")
+        if connect_to:
+            command.extend(["--connect-to", connect_to])
+        result = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+        )
+        if result.returncode != 0:
+            raise ElevenLabsError(502, "ElevenLabs 网络连接失败，Python 与系统网络路径均不可用")
+        response, separator, status = result.stdout.rpartition(b"\n")
+        if not separator or not status.isdigit():
+            raise ElevenLabsError(502, "ElevenLabs 网络响应格式无效")
+        return int(status), response
+    finally:
+        for path in (header_path, body_path):
+            if path:
+                try:
+                    os.unlink(path)
+                except FileNotFoundError:
+                    pass
 
 
 @dataclass(frozen=True)

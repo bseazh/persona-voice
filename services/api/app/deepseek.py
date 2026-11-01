@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 from typing import Callable
 
@@ -17,11 +18,15 @@ Transport = Callable[[str, str, dict[str, str], bytes, float], tuple[int, bytes]
 
 
 def _transport(method: str, url: str, headers: dict[str, str], body: bytes, timeout: float) -> tuple[int, bytes]:
-    try:
-        response = httpx.request(method, url, headers=headers, content=body, timeout=timeout)
-        return response.status_code, response.content
-    except httpx.HTTPError as error:
-        raise DeepSeekError(502, "DeepSeek network connection failed") from error
+    for attempt in range(3):
+        try:
+            response = httpx.request(method, url, headers=headers, content=body, timeout=timeout)
+            return response.status_code, response.content
+        except httpx.HTTPError as error:
+            if attempt == 2:
+                raise DeepSeekError(502, "DeepSeek 网络连接失败，已自动重试 3 次") from error
+            time.sleep(0.5 * (attempt + 1))
+    raise AssertionError("unreachable")
 
 
 @dataclass(frozen=True)
