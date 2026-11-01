@@ -33,3 +33,13 @@ class CreateCallResponse(BaseModel):
     mode: str
     status_url: str
 
+
+class ConversationMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=2000)
+
+
+class ConversationRequest(BaseModel):
+    audio_base64: str = Field(min_length=1, max_length=20_000_000)
+    mime_type: str = Field(default="audio/webm", max_length=100)
+    history: list[ConversationMessage] = Field(default_factory=list, max_length=10)

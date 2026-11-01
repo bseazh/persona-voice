@@ -27,6 +27,17 @@ def test_tts_and_asr_payloads():
     assert b'name="file"; filename="speech.mp3"' in calls[1][3]
 
 
+def test_transcribe_browser_audio_uses_supplied_format():
+    def transport(method, url, headers, body, timeout):
+        assert headers["Content-Type"].startswith("multipart/form-data")
+        assert b'filename="recording.webm"' in body
+        assert b"Content-Type: audio/webm" in body
+        return 200, json.dumps({"text": "浏览器录音"}).encode()
+
+    client = ElevenLabsSpeechClient(config(), transport)
+    assert client.transcribe(b"webm-audio", filename="recording.webm", content_type="audio/webm") == "浏览器录音"
+
+
 def test_permission_error_is_redacted():
     def transport(*_):
         return 401, json.dumps({"detail": {"message": "missing permission"}}).encode()
@@ -36,4 +47,3 @@ def test_permission_error_is_redacted():
         client.synthesize("test")
     assert error.value.status_code == 401
     assert "test-key" not in str(error.value)
-

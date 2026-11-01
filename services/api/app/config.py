@@ -12,6 +12,7 @@ def _bool(name: str, default: bool = False) -> bool:
 class Settings:
     database_path: str = os.getenv("DATABASE_PATH", "data/calls.db")
     enable_real_calls: bool = _bool("ENABLE_REAL_CALLS")
+    enable_local_conversation: bool = _bool("ENABLE_LOCAL_CONVERSATION")
     allowed_numbers: frozenset[str] = frozenset(
         item.strip()
         for item in os.getenv("ALLOWED_DESTINATION_NUMBERS", "").split(",")
@@ -38,6 +39,11 @@ class Settings:
     @property
     def elevenlabs_configured(self) -> bool:
         required = ("ELEVENLABS_API_KEY", "STT_MODEL", "TTS_MODEL", "TTS_VOICE_ID")
+        return all(os.getenv(name) and "REPLACE" not in os.getenv(name, "") for name in required)
+
+    @property
+    def deepseek_configured(self) -> bool:
+        required = ("DEEPSEEK_API_KEY", "LLM_MODEL")
         return all(os.getenv(name) and "REPLACE" not in os.getenv(name, "") for name in required)
 
 

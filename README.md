@@ -39,6 +39,8 @@ Run the real StepFun TTS-to-ASR round-trip with `python scripts/smoke_stepfun.py
 
 The active speech provider is ElevenLabs. Run its billable end-to-end check with `python scripts/smoke_elevenlabs.py`; it synthesizes Chinese speech with `eleven_v4`, sends the generated MP3 to `scribe_v2`, and requires the final transcript to contain the expected phrase. The output is written to `BigApple输出/elevenlabs-roundtrip.mp3` without logging the API key.
 
+For a local microphone conversation without SIP, run `python3 scripts/run_local_voice.py` and open `http://127.0.0.1:5050`. Click once to start recording and again to stop. The local-only server sends the recording through ElevenLabs ASR, DeepSeek, and ElevenLabs TTS; it binds to `127.0.0.1` so the paid endpoint is not exposed to the network.
+
 ## API
 
 - `POST /api/calls` creates a mock or explicitly authorized real call request.

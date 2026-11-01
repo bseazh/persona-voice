@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
 import os
 import uuid
 from contextlib import asynccontextmanager
@@ -12,7 +14,9 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
-from .models import CreateCall, CreateCallResponse
+from .deepseek import DeepSeekClient, DeepSeekConfig, DeepSeekError
+from .elevenlabs import ElevenLabsConfig, ElevenLabsError, ElevenLabsSpeechClient
+from .models import ConversationRequest, CreateCall, CreateCallResponse
 from .store import Store
 
 
@@ -53,11 +57,74 @@ def health() -> dict:
         "status": "ok",
         "database": "ready",
         "real_calls_enabled": settings.enable_real_calls,
+        "local_conversation_enabled": settings.enable_local_conversation,
         "livekit_configured": settings.livekit_configured,
         "sip_configured": settings.sip_configured,
         "stepfun_configured": settings.stepfun_configured,
         "elevenlabs_configured": settings.elevenlabs_configured,
+        "deepseek_configured": settings.deepseek_configured,
         "mode": "real-ready" if settings.enable_real_calls and settings.livekit_configured and settings.sip_configured else "mock",
+    }
+
+
+def _speech_client() -> ElevenLabsSpeechClient:
+    return ElevenLabsSpeechClient(ElevenLabsConfig(
+        api_key=os.getenv("ELEVENLABS_API_KEY", ""),
+        base_url=os.getenv("ELEVENLABS_BASE_URL", "https://api.elevenlabs.io/v1"),
+        tts_model=os.getenv("TTS_MODEL", "eleven_v4"),
+        voice_id=os.getenv("TTS_VOICE_ID", ""),
+        output_format=os.getenv("TTS_OUTPUT_FORMAT", "mp3_44100_128"),
+        asr_model=os.getenv("STT_MODEL", "scribe_v2"),
+        language=os.getenv("STT_LANGUAGE", "zh"),
+    ))
+
+
+def _llm_client() -> DeepSeekClient:
+    return DeepSeekClient(DeepSeekConfig(
+        api_key=os.getenv("DEEPSEEK_API_KEY", ""),
+        base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
+        model=os.getenv("LLM_MODEL", "deepseek-chat"),
+    ))
+
+
+@app.post("/api/conversation")
+async def converse(payload: ConversationRequest) -> dict:
+    if not settings.enable_local_conversation:
+        raise HTTPException(403, "语音对话接口仅在本地启动模式下开放")
+    if not settings.elevenlabs_configured or not settings.deepseek_configured:
+        raise HTTPException(503, "ElevenLabs 或 DeepSeek 尚未配置")
+    try:
+        audio = base64.b64decode(payload.audio_base64, validate=True)
+    except (ValueError, binascii.Error) as error:
+        raise HTTPException(400, "音频数据无效") from error
+    if not audio or len(audio) > 12_000_000:
+        raise HTTPException(413, "音频为空或超过 12 MB")
+    mime = payload.mime_type.split(";", 1)[0].lower()
+    extensions = {"audio/webm": "webm", "audio/mp4": "m4a", "audio/ogg": "ogg", "audio/mpeg": "mp3", "audio/wav": "wav"}
+    if mime not in extensions:
+        raise HTTPException(415, "浏览器录音格式不受支持")
+    try:
+        speech = _speech_client()
+        transcript = await asyncio.to_thread(
+            speech.transcribe,
+            audio,
+            filename=f"recording.{extensions[mime]}",
+            content_type=mime,
+        )
+        answer = await asyncio.to_thread(
+            _llm_client().reply,
+            transcript,
+            [message.model_dump() for message in payload.history],
+        )
+        answer_audio = await asyncio.to_thread(speech.synthesize, answer)
+    except (ElevenLabsError, DeepSeekError, ValueError) as error:
+        status = getattr(error, "status_code", 502)
+        raise HTTPException(502 if status >= 500 else status, str(error)) from error
+    return {
+        "transcript": transcript,
+        "answer": answer,
+        "audio_base64": base64.b64encode(answer_audio).decode(),
+        "audio_mime_type": "audio/mpeg",
     }
 
 
@@ -103,7 +170,7 @@ def list_calls(limit: int = Query(default=25, ge=1, le=100)) -> dict:
     return {"items": store.list(limit)}
 
 
-static_dir = Path(__file__).resolve().parent.parent / "static"
+static_dir = Path(os.getenv("STATIC_DIR", Path(__file__).resolve().parent.parent / "static"))
 if static_dir.exists():
     assets = static_dir / "_next"
     if assets.exists():

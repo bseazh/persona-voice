@@ -4,9 +4,9 @@ import json
 import uuid
 from dataclasses import dataclass
 from typing import Callable
-from urllib.error import HTTPError
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+
+import httpx
 
 
 class ElevenLabsError(RuntimeError):
@@ -19,12 +19,11 @@ Transport = Callable[[str, str, dict[str, str], bytes, float], tuple[int, bytes]
 
 
 def _transport(method: str, url: str, headers: dict[str, str], body: bytes, timeout: float) -> tuple[int, bytes]:
-    request = Request(url, data=body, headers=headers, method=method)
     try:
-        with urlopen(request, timeout=timeout) as response:
-            return response.status, response.read()
-    except HTTPError as error:
-        return error.code, error.read()
+        response = httpx.request(method, url, headers=headers, content=body, timeout=timeout)
+        return response.status_code, response.content
+    except httpx.HTTPError as error:
+        raise ElevenLabsError(502, "ElevenLabs network connection failed") from error
 
 
 @dataclass(frozen=True)
@@ -69,7 +68,14 @@ class ElevenLabsSpeechClient:
             raise ElevenLabsError(status, "TTS response was not an MP3 file")
         return body
 
-    def transcribe_mp3(self, audio: bytes, timeout: float = 120) -> str:
+    def transcribe(
+        self,
+        audio: bytes,
+        *,
+        filename: str = "speech.mp3",
+        content_type: str = "audio/mpeg",
+        timeout: float = 120,
+    ) -> str:
         if not audio:
             raise ValueError("ASR input must not be empty")
         boundary = f"persona-voice-{uuid.uuid4().hex}"
@@ -80,8 +86,8 @@ class ElevenLabsSpeechClient:
                 "language_code": self.config.language,
                 "tag_audio_events": "false",
             },
-            filename="speech.mp3",
-            content_type="audio/mpeg",
+            filename=filename,
+            content_type=content_type,
             audio=audio,
         )
         status, response = self.transport(
@@ -99,6 +105,9 @@ class ElevenLabsSpeechClient:
         if not transcript:
             raise ElevenLabsError(status, "ASR response did not contain a transcript")
         return transcript
+
+    def transcribe_mp3(self, audio: bytes, timeout: float = 120) -> str:
+        return self.transcribe(audio, timeout=timeout)
 
     @staticmethod
     def _multipart(
@@ -139,4 +148,3 @@ class ElevenLabsSpeechClient:
         except (json.JSONDecodeError, AttributeError):
             pass
         raise ElevenLabsError(status, message)
-
