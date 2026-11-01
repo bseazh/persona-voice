@@ -9,9 +9,9 @@ import time
 import uuid
 from dataclasses import dataclass
 from typing import Callable
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-
-import httpx
+from urllib.request import Request, urlopen
 
 
 class ElevenLabsError(RuntimeError):
@@ -26,12 +26,15 @@ Transport = Callable[[str, str, dict[str, str], bytes, float], tuple[int, bytes]
 def _transport(method: str, url: str, headers: dict[str, str], body: bytes, timeout: float) -> tuple[int, bytes]:
     if os.getenv("ELEVENLABS_CURL_CONNECT_TO") and shutil.which("curl"):
         return _curl_transport(method, url, headers, body, timeout)
-    last_error: httpx.HTTPError | None = None
+    last_error: URLError | None = None
     for attempt in range(3):
         try:
-            response = httpx.request(method, url, headers=headers, content=body, timeout=timeout)
-            return response.status_code, response.content
-        except httpx.HTTPError as error:
+            request = Request(url, data=body, headers=headers, method=method)
+            with urlopen(request, timeout=timeout) as response:
+                return response.status, response.read()
+        except HTTPError as error:
+            return error.code, error.read()
+        except URLError as error:
             last_error = error
             time.sleep(0.5 * (attempt + 1))
     if shutil.which("curl"):

@@ -24,7 +24,7 @@ if [[ -d "$runtime_dir" ]]; then
 fi
 mv "$staging_dir" "$runtime_dir"
 
-sudo docker compose up -d --build --force-recreate
+sudo docker compose up -d --no-build --force-recreate
 
 healthy=false
 for _ in $(seq 1 30); do

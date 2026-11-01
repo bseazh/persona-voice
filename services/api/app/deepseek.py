@@ -4,8 +4,8 @@ import json
 import time
 from dataclasses import dataclass
 from typing import Callable
-
-import httpx
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 
 class DeepSeekError(RuntimeError):
@@ -18,15 +18,18 @@ Transport = Callable[[str, str, dict[str, str], bytes, float], tuple[int, bytes]
 
 
 def _transport(method: str, url: str, headers: dict[str, str], body: bytes, timeout: float) -> tuple[int, bytes]:
+    last_error: URLError | None = None
     for attempt in range(3):
         try:
-            response = httpx.request(method, url, headers=headers, content=body, timeout=timeout)
-            return response.status_code, response.content
-        except httpx.HTTPError as error:
-            if attempt == 2:
-                raise DeepSeekError(502, "DeepSeek 网络连接失败，已自动重试 3 次") from error
+            request = Request(url, data=body, headers=headers, method=method)
+            with urlopen(request, timeout=timeout) as response:
+                return response.status, response.read()
+        except HTTPError as error:
+            return error.code, error.read()
+        except URLError as error:
+            last_error = error
             time.sleep(0.5 * (attempt + 1))
-    raise AssertionError("unreachable")
+    raise DeepSeekError(502, "DeepSeek 网络连接失败，已自动重试 3 次") from last_error
 
 
 @dataclass(frozen=True)

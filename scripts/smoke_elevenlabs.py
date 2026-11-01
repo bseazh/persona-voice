@@ -3,15 +3,10 @@ from __future__ import annotations
 
 import os
 import sys
-import importlib.util
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-if importlib.util.find_spec("httpx") is None:
-    venv_python = ROOT / ".venv" / "bin" / "python"
-    if venv_python.exists():
-        os.execv(venv_python, [str(venv_python), __file__])
 sys.path.insert(0, str(ROOT / "services" / "api"))
 
 from app.elevenlabs import ElevenLabsConfig, ElevenLabsError, ElevenLabsSpeechClient  # noqa: E402
