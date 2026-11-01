@@ -90,7 +90,7 @@ def _llm_client() -> DeepSeekClient:
 
 
 @app.post("/api/conversation")
-async def converse(payload: ConversationRequest) -> dict:
+async def converse(payload: ConversationRequest, response: Response) -> dict:
     if not settings.enable_local_conversation:
         raise HTTPException(403, "语音对话接口仅在本地启动模式下开放")
     if not settings.elevenlabs_configured or not settings.deepseek_configured:
@@ -126,10 +126,15 @@ async def converse(payload: ConversationRequest) -> dict:
     conversation_audio[audio_id] = answer_audio
     while len(conversation_audio) > 20:
         conversation_audio.popitem(last=False)
+    audio_url = f"/api/conversation/audio/{audio_id}"
+    response.headers["X-Persona-Audio-Url"] = audio_url
+    response.headers["X-Persona-Conversation-Version"] = "2"
+    response.headers["Cache-Control"] = "no-store"
     return {
         "transcript": transcript,
         "answer": answer,
-        "audio_url": f"/api/conversation/audio/{audio_id}",
+        "audio_url": audio_url,
+        "conversation_version": 2,
     }
 
 

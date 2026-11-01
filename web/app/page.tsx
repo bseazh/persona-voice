@@ -159,10 +159,19 @@ export default function Home() {
         { role: "user", content: body.transcript },
         { role: "assistant", content: body.answer },
       ]);
-      if (typeof body.audio_url !== "string" || !body.audio_url.startsWith("/api/")) {
+      const rawAudioUrl =
+        res.headers.get("X-Persona-Audio-Url") || body.audio_url;
+      if (typeof rawAudioUrl !== "string") {
         throw new Error("语音回复地址无效");
       }
-      const audio = new Audio(body.audio_url);
+      const resolvedAudioUrl = new URL(rawAudioUrl, window.location.origin);
+      if (
+        resolvedAudioUrl.origin !== window.location.origin ||
+        !resolvedAudioUrl.pathname.startsWith("/api/conversation/audio/")
+      ) {
+        throw new Error("语音回复地址无效");
+      }
+      const audio = new Audio(resolvedAudioUrl.href);
       audioRef.current = audio;
       audio.onended = () => {
         setVoiceState("idle");
