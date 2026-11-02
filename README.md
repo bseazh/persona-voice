@@ -1,31 +1,35 @@
 # Persona Voice
 
-LiveKit AI outbound calling MVP. The checked-in configuration is deliberately mock-only: it exercises the web, API, validation, idempotency, SQLite persistence, and status polling without placing a telephone call.
+Browser-based, real-time Chinese voice assistant built with LiveKit.
 
-## Quick start with Docker
-
-```bash
-cp .env.example .env
-docker compose up --build -d
-curl http://127.0.0.1:5050/api/health
+```text
+Browser microphone
+  ↕ WebRTC
+LiveKit Cloud room
+  ↕ WebRTC
+Python Agent
+  ├─ ElevenLabs Scribe v2 Realtime (STT)
+  ├─ DeepSeek Chat (LLM)
+  └─ ElevenLabs v4 (TTS)
 ```
 
-Open `http://127.0.0.1:5050`. Stop with `docker compose down` (SQLite data remains in the `persona_voice_data` volume).
-
-Deployed mock workbench: `https://phone.hehaizhao.site`. The server path is `/home/ubuntu/Project/persona-voice`; Caddy terminates HTTPS and proxies to the container on port 5050.
+This project no longer uses the former mock outbound-call UI, `/api/conversation`, Base64 recording uploads, temporary audio URLs, or SQLite call simulation. SIP and telephone calling are intentionally out of scope for this stage.
 
 ## Local development
 
-Requires Python 3.12 or 3.13 and Node 20+ (the LiveKit agent dependency set is not yet validated on Python 3.14).
+Requirements: Node 22.22+, Python 3.10–3.14, and a populated repository-root `.env`.
+
+Start the Agent:
 
 ```bash
-python3.13 -m venv .venv
-source .venv/bin/activate
-pip install -r services/api/requirements-dev.txt
-uvicorn app.main:app --app-dir services/api --reload --port 8000
+python3.12 -m venv .venv-agent
+source .venv-agent/bin/activate
+pip install -r services/agent/requirements.txt
+python -m livekit.agents download-files
+python services/agent/agent.py dev
 ```
 
-In another terminal:
+Start the web app in another terminal:
 
 ```bash
 cd web
@@ -33,32 +37,34 @@ npm ci
 npm run dev
 ```
 
-Run tests with `pytest -q`. See `MANUAL_SETUP.md` before enabling a real call. A dispatch being accepted is not evidence that a phone rang or was answered.
+Open `http://127.0.0.1:3000`, enter `VOICE_ACCESS_CODE`, and allow microphone access.
 
-Run the real StepFun TTS-to-ASR round-trip with `python scripts/smoke_stepfun.py`. This request is billable and fails clearly when the account has no quota. A successful run writes `BigApple输出/stepfun-roundtrip.wav` and prints the final transcript without printing the API key.
+## Environment
 
-The active speech provider is ElevenLabs. Run its billable end-to-end check with `python scripts/smoke_elevenlabs.py`; it synthesizes Chinese speech with `eleven_v4`, sends the generated MP3 to `scribe_v2`, and requires the final transcript to contain the expected phrase. The output is written to `BigApple输出/elevenlabs-roundtrip.mp3` without logging the API key.
+Copy `.env.example` to `.env`. Required values are:
 
-For a local microphone conversation without SIP, run `python3 scripts/run_local_voice.py` and open `http://127.0.0.1:5050`. Click once to start recording and again to stop. The local-only server sends the recording through ElevenLabs ASR, DeepSeek, and ElevenLabs TTS; it binds to `127.0.0.1` so the paid endpoint is not exposed to the network.
+- LiveKit Cloud URL, API key, and API secret
+- ElevenLabs API key and voice ID
+- DeepSeek API key
+- a long random `VOICE_ACCESS_CODE` for the public web app
 
-## API
+Secrets are server-side only. The browser receives a short-lived token scoped to one random room. The token endpoint is access-code protected and rate limited.
 
-- `POST /api/calls` creates a mock or explicitly authorized real call request.
-- `GET /api/calls/{call_id}` returns event-driven status.
-- `GET /api/calls` lists recent calls with masked numbers.
-- `GET /api/health` reports readiness without exposing secrets.
+## Production and automatic deployment
 
-The public deployment remains mock-only. A real call requires every provider credential, an outbound SIP trunk, `ENABLE_REAL_CALLS=true`, an exact E.164 allowlist match, and explicit user confirmation in the UI.
+The production path is `/home/ubuntu/Project/persona-voice` and the site is `https://phone.hehaizhao.site`.
 
-## Tencent Cloud operations
+Every push to `main` runs `.github/workflows/deploy.yml`, which validates the Agent, audits/lints/builds Next.js, synchronizes the release over SSH, installs pinned Agent dependencies when needed, and restarts two systemd units:
 
-Every push to `main` runs `.github/workflows/deploy.yml`. GitHub Actions tests the API, audits frontend dependencies, builds the Next.js static export, synchronizes the source and build output, and deploys to Tencent Cloud over a dedicated SSH key. The server atomically switches the container's read-only runtime mounts, verifies local health, and restores the previous runtime if needed. The workflow then verifies the public HTTPS endpoint.
+- `persona-voice-web.service` — Next.js standalone server on `127.0.0.1:5050`
+- `persona-voice-agent.service` — LiveKit Python Agent
 
-This avoids unreliable large image transfers from Docker Hub/GitHub to Tencent Cloud. Python dependency changes in `services/api/requirements.txt` still require rebuilding and importing the base image; ordinary frontend and API source changes deploy automatically. Routine server checks:
+Caddy terminates HTTPS and proxies to the Next.js server. The server `.env` is excluded from synchronization and remains in place across deployments.
+
+Useful checks:
 
 ```bash
-cd /home/ubuntu/Project/persona-voice
-sudo docker compose ps
-sudo docker compose logs --tail=100
-curl http://127.0.0.1:5050/api/health
+sudo systemctl status persona-voice-web persona-voice-agent
+sudo journalctl -u persona-voice-agent -n 100 --no-pager
+curl http://127.0.0.1:5050/api/token
 ```

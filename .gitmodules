@@ -1,3 +1,0 @@
-[submodule "vendor/outbound-caller-python"]
-	path = vendor/outbound-caller-python
-	url = https://github.com/livekit-examples/outbound-caller-python.git

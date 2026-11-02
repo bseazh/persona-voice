@@ -1,6 +1,15 @@
-# Voice worker
+# Persona Voice Agent
 
-This directory is reserved for the real LiveKit worker. The currently deployed web/API service is mock-only. Before adding dispatch, validate the installed LiveKit SDK against upstream commit `608f4c7055c3e3307a98187cfdf74b77eeac8600`, configure providers locally in `.env.local`, and complete `MANUAL_SETUP.md`.
+LiveKit Python Agent for browser-based, real-time Chinese voice conversations.
 
-The upstream source is intentionally referenced rather than copied and silently modified. Its current `EnglishModel()` is not appropriate evidence of Chinese turn detection support.
+Pipeline: ElevenLabs `scribe_v2_realtime` → DeepSeek `deepseek-chat` → ElevenLabs `eleven_v4`.
 
+```bash
+python3.12 -m venv .venv-agent
+source .venv-agent/bin/activate
+pip install -r services/agent/requirements.txt
+python -m livekit.agents download-files
+python services/agent/agent.py dev
+```
+
+The process reads provider credentials from the repository root `.env`. Production uses `start` rather than `dev`.

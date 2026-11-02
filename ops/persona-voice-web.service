@@ -1,0 +1,22 @@
+[Unit]
+Description=Persona Voice Next.js web application
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/Project/persona-voice/web
+EnvironmentFile=/home/ubuntu/Project/persona-voice/.env
+Environment=NODE_ENV=production
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=5050
+ExecStart=/usr/bin/node /home/ubuntu/Project/persona-voice/web/.next/standalone/server.js
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
