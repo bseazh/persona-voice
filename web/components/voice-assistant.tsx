@@ -15,6 +15,31 @@ import {
 import { Bot, Mic, PhoneOff, Radio, Send, Sparkles } from 'lucide-react';
 import { MediaDeviceFailure, Track } from 'livekit-client';
 
+type BrowserSpeechResult = { transcript: string };
+type BrowserSpeechEvent = {
+  resultIndex: number;
+  results: ArrayLike<{ isFinal: boolean; 0: BrowserSpeechResult }>;
+};
+type BrowserSpeechErrorEvent = { error: string };
+type BrowserSpeechRecognition = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((event: BrowserSpeechEvent) => void) | null;
+  onerror: ((event: BrowserSpeechErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
+declare global {
+  interface Window {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  }
+}
+
 type ConnectionDetails = {
   serverUrl: string;
   roomName: string;
@@ -134,12 +159,55 @@ function ConversationRoom({ mediaError }: { mediaError: string }) {
   const { chatMessages, send, isSending } = useChat();
   const transcriptions = useTranscriptions();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const speechBaseRef = useRef('');
   const [textInput, setTextInput] = useState('');
   const [textError, setTextError] = useState('');
+  const [dictating, setDictating] = useState(false);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [chatMessages, transcriptions]);
+
+  function toggleDictation() {
+    if (dictating) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) {
+      setTextError('当前浏览器不支持备用语音输入，请使用 Chrome 或 Safari，或直接输入文字。');
+      return;
+    }
+
+    const recognition = new Recognition();
+    recognition.lang = 'zh-CN';
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    speechBaseRef.current = textInput.trim();
+    recognition.onresult = (event) => {
+      let spoken = '';
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        spoken += event.results[index][0].transcript;
+      }
+      const base = speechBaseRef.current;
+      setTextInput(base ? `${base} ${spoken}` : spoken);
+    };
+    recognition.onerror = (event) => {
+      setDictating(false);
+      setTextError(event.error === 'not-allowed'
+        ? '浏览器语音输入权限被拒绝，请允许麦克风。'
+        : '浏览器语音输入失败，请再试一次或直接输入文字。');
+    };
+    recognition.onend = () => {
+      setDictating(false);
+      recognitionRef.current = null;
+    };
+    recognitionRef.current = recognition;
+    setTextError('');
+    setDictating(true);
+    recognition.start();
+  }
 
   async function submitText(event: FormEvent) {
     event.preventDefault();
@@ -210,6 +278,15 @@ function ConversationRoom({ mediaError }: { mediaError: string }) {
             aria-label="手动输入消息"
             maxLength={500}
           />
+          <button
+            className={`dictation-button ${dictating ? 'dictation-active' : ''}`}
+            type="button"
+            onClick={toggleDictation}
+            aria-label={dictating ? '停止语音输入' : '使用语音输入文字'}
+            title="使用浏览器语音输入填充文字框"
+          >
+            <Mic size={17} />
+          </button>
           <button type="submit" disabled={isSending || !textInput.trim()} aria-label="发送文字消息">
             <Send size={17} />{isSending ? '发送中' : '发送'}
           </button>

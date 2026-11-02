@@ -71,7 +71,11 @@ button { cursor: pointer; }
 .text-input-form > div { display: flex; align-items: center; gap: 10px; }
 .text-input-form input { flex: 1; min-width: 0; height: 44px; padding: 0 14px; color: var(--ink); border: 1px solid var(--line); border-radius: 12px; outline: none; background: rgba(255,255,255,.04); }
 .text-input-form input:focus { border-color: rgba(97,215,164,.5); box-shadow: 0 0 0 3px rgba(97,215,164,.07); }
+.dictation-button { width: 42px; height: 42px; display: inline-grid; place-items: center; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 11px; color: var(--ink); background: rgba(255,255,255,.06); }
+.dictation-button:hover, .dictation-active { color: #07100c; border-color: transparent; background: var(--green); }
 .text-input-form button { height: 42px; padding: 0 15px; display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 11px; color: #07100c; background: var(--green); font-weight: 700; }
+.text-input-form .dictation-button { padding: 0; color: var(--ink); border: 1px solid var(--line); background: rgba(255,255,255,.06); }
+.text-input-form .dictation-button:hover, .text-input-form .dictation-active { color: #07100c; border-color: transparent; background: var(--green); }
 .text-input-form button:disabled { cursor: not-allowed; opacity: .45; }
 .text-input-form .error { margin: 8px 0 0; }
 .controls { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 22px 28px 26px; border-top: 1px solid var(--line); }
