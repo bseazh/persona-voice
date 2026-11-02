@@ -7,11 +7,12 @@ import {
   LiveKitRoom,
   RoomAudioRenderer,
   TrackToggle,
+  useChat,
   useLocalParticipant,
   useTranscriptions,
   useVoiceAssistant,
 } from '@livekit/components-react';
-import { Bot, Mic, PhoneOff, Radio, Sparkles } from 'lucide-react';
+import { Bot, Mic, PhoneOff, Radio, Send, Sparkles } from 'lucide-react';
 import { MediaDeviceFailure, Track } from 'livekit-client';
 
 type ConnectionDetails = {
@@ -130,12 +131,28 @@ function MicrophoneTest({ onReady }: { onReady: (ready: boolean) => void }) {
 function ConversationRoom({ mediaError }: { mediaError: string }) {
   const { state, audioTrack } = useVoiceAssistant();
   const { isMicrophoneEnabled, lastMicrophoneError, localParticipant } = useLocalParticipant();
+  const { chatMessages, send, isSending } = useChat();
   const transcriptions = useTranscriptions();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [textInput, setTextInput] = useState('');
+  const [textError, setTextError] = useState('');
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [transcriptions]);
+  }, [chatMessages, transcriptions]);
+
+  async function submitText(event: FormEvent) {
+    event.preventDefault();
+    const message = textInput.trim();
+    if (!message || isSending) return;
+    setTextError('');
+    try {
+      await send(message);
+      setTextInput('');
+    } catch {
+      setTextError('文字消息发送失败，请确认房间仍然连接。');
+    }
+  }
 
   return (
     <section className="room">
@@ -163,7 +180,7 @@ function ConversationRoom({ mediaError }: { mediaError: string }) {
           )}
         </div>
         <div className="transcript">
-          {transcriptions.length === 0 && (
+          {transcriptions.length === 0 && chatMessages.length === 0 && (
             <div className="empty-transcript">连接完成后直接说话，实时字幕会显示在这里。</div>
           )}
           {transcriptions.map((item) => {
@@ -175,8 +192,30 @@ function ConversationRoom({ mediaError }: { mediaError: string }) {
               </div>
             );
           })}
+          {chatMessages.map((item) => (
+            <div className="message local" key={`chat-${item.id}`}>
+              <small>你 · 文字输入</small>
+              {item.message}
+            </div>
+          ))}
         </div>
       </div>
+
+      <form className="text-input-form" onSubmit={submitText}>
+        <div>
+          <input
+            value={textInput}
+            onChange={(event) => setTextInput(event.target.value)}
+            placeholder="语音没反应时，在这里输入文字测试 DeepSeek 和语音回复"
+            aria-label="手动输入消息"
+            maxLength={500}
+          />
+          <button type="submit" disabled={isSending || !textInput.trim()} aria-label="发送文字消息">
+            <Send size={17} />{isSending ? '发送中' : '发送'}
+          </button>
+        </div>
+        {textError && <p className="error">{textError}</p>}
+      </form>
 
       <div className="controls">
         <TrackToggle className="control-button" source={Track.Source.Microphone} showIcon>

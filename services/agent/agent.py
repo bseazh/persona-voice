@@ -50,6 +50,12 @@ async def persona_voice(ctx: JobContext) -> None:
             model=os.getenv("STT_MODEL", "scribe_v2_realtime"),
             language_code=os.getenv("STT_LANGUAGE", "zh"),
             tag_audio_events=False,
+            server_vad={
+                "vad_silence_threshold_secs": 0.6,
+                "vad_threshold": 0.3,
+                "min_speech_duration_ms": 100,
+                "min_silence_duration_ms": 500,
+            },
             enable_logging=False,
         ),
         llm=openai.LLM.with_deepseek(
@@ -65,10 +71,16 @@ async def persona_voice(ctx: JobContext) -> None:
             language="zh",
             enable_logging=False,
         ),
-        vad=silero.VAD.load(min_speech_duration=0.12, min_silence_duration=0.45),
+        vad=silero.VAD.load(
+            min_speech_duration=0.08,
+            min_silence_duration=0.35,
+            prefix_padding_duration=0.3,
+            activation_threshold=0.35,
+        ),
+        transcription_timeout=4.0,
         turn_handling=TurnHandlingOptions(
-            turn_detection="vad",
-            endpointing={"min_delay": 0.35, "max_delay": 1.8},
+            turn_detection="stt",
+            endpointing={"min_delay": 0.25, "max_delay": 1.2},
             interruption={"enabled": True, "min_duration": 0.35},
             preemptive_generation={"enabled": True},
         ),
