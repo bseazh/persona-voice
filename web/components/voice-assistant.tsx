@@ -1,10 +1,10 @@
 'use client';
 
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import {
   BarVisualizer,
   DisconnectButton,
-  LiveKitRoom,
+  RoomContext,
   RoomAudioRenderer,
   TrackToggle,
   useChat,
@@ -13,7 +13,7 @@ import {
   useVoiceAssistant,
 } from '@livekit/components-react';
 import { Bot, Mic, PhoneOff, Radio, Send, Sparkles } from 'lucide-react';
-import { MediaDeviceFailure, Track } from 'livekit-client';
+import { DisconnectReason, MediaDeviceFailure, Room, RoomEvent, Track } from 'livekit-client';
 
 type ConnectionDetails = {
   serverUrl: string;
@@ -379,20 +379,82 @@ function ConversationRoom({ mediaError, accessCode, deviceId }: { mediaError: st
   );
 }
 
+function VoiceSession({ connection, accessCode, deviceId, onLeave }: {
+  connection: ConnectionDetails; accessCode: string; deviceId: string;
+  onLeave: (message: string) => void;
+}) {
+  const [room, setRoom] = useState<Room>();
+  const [mediaError, setMediaError] = useState('');
+
+  useEffect(() => {
+    const current = new Room();
+    let active = true;
+    let connected = false;
+    setRoom(current);
+    const disconnected = (reason?: DisconnectReason) => {
+      // A failed join emits Disconnected before connect() rejects. Let the
+      // rejection report its original error before unmounting the room.
+      if (!active || !connected) return;
+      onLeave(reason === DisconnectReason.CLIENT_INITIATED ? ''
+        : '实时连接已断开，自动重连未成功。请检查网络后重新进入。');
+    };
+    current.on(RoomEvent.Disconnected, disconnected);
+    void (async () => {
+      try {
+        await current.connect(connection.serverUrl, connection.participantToken);
+      } catch (reason) {
+        if (!active) return;
+        console.warn('voice_connection_failed', reason);
+        onLeave('无法建立实时语音连接，请检查网络后重试。' +
+          (reason instanceof Error ? `（${reason.message}）` : ''));
+        return;
+      }
+      if (!active) return;
+      connected = true;
+      try {
+        await current.localParticipant.setMicrophoneEnabled(true, {
+          deviceId: deviceId ? { exact: deviceId } : undefined,
+          echoCancellation: true, noiseSuppression: true, autoGainControl: true,
+        });
+      } catch (reason) {
+        if (!active) return;
+        const failure = MediaDeviceFailure.getFailure(reason);
+        setMediaError(failure === MediaDeviceFailure.PermissionDenied
+          ? '浏览器拒绝了麦克风权限。请在网站权限中允许麦克风后重试。'
+          : '麦克风启动失败，请检查所选设备和系统权限，也可以先发送文字。');
+      }
+    })();
+    return () => {
+      active = false;
+      current.off(RoomEvent.Disconnected, disconnected);
+      void current.disconnect();
+    };
+  }, [connection, deviceId, onLeave]);
+
+  if (!room) return <p role="status">正在建立实时连接…</p>;
+  return <RoomContext.Provider value={room}>
+    <ConversationRoom mediaError={mediaError} accessCode={accessCode} deviceId={deviceId} />
+    <button type="button" className="mic-test-button" onClick={() => onLeave('')}>返回首页</button>
+  </RoomContext.Provider>;
+}
+
 export function VoiceAssistant() {
   const [connection, setConnection] = useState<ConnectionDetails | null>(null);
   const [accessCode, setAccessCode] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState('');
-  const [mediaError, setMediaError] = useState('');
   const [microphoneReady, setMicrophoneReady] = useState(false);
   const [deviceId, setDeviceId] = useState('');
+  const leave = useCallback((message: string) => {
+    setConnection(null);
+    setMicrophoneReady(false);
+    setError(message);
+  }, []);
 
   async function start(event: FormEvent) {
     event.preventDefault();
     setConnecting(true);
     setError('');
-    setMediaError('');
     try {
       const response = await fetch('/api/token', {
         method: 'POST',
@@ -433,28 +495,7 @@ export function VoiceAssistant() {
             </form>
           </section>
         ) : (
-          <LiveKitRoom
-            token={connection.participantToken}
-            serverUrl={connection.serverUrl}
-            connect
-            audio={{ deviceId: deviceId ? { exact: deviceId } : undefined, echoCancellation: true, noiseSuppression: true, autoGainControl: true }}
-            video={false}
-            onDisconnected={() => { setConnection(null); setMicrophoneReady(false); }}
-            onError={(reason) => setError(reason.message)}
-            onMediaDeviceFailure={(failure, kind) => {
-              if (kind !== 'audioinput') return;
-              const message = failure === MediaDeviceFailure.PermissionDenied
-                ? '浏览器拒绝了麦克风权限。请在地址栏的网站权限中选择“允许麦克风”，然后重新进入。'
-                : failure === MediaDeviceFailure.NotFound
-                  ? '没有检测到可用麦克风，请连接麦克风后重新进入。'
-                  : failure === MediaDeviceFailure.DeviceInUse
-                    ? '麦克风正被其他应用占用，请关闭占用麦克风的应用后重试。'
-                    : '麦克风启动失败，请检查浏览器的网站权限和系统麦克风权限。';
-              setMediaError(message);
-            }}
-          >
-            <ConversationRoom mediaError={mediaError} accessCode={accessCode} deviceId={deviceId} />
-          </LiveKitRoom>
+          <VoiceSession connection={connection} accessCode={accessCode} deviceId={deviceId} onLeave={leave} />
         )}
       </div>
     </main>
