@@ -73,4 +73,4 @@ curl http://127.0.0.1:5050/api/token
 录音输入和 LiveKit Agent 识别均使用 `qwen-audio-3.1-asr-flash`，需要在项目 `.env` 设置 `DASHSCOPE_API_KEY`、`QWEN_ASR_URL`、`QWEN_ASR_MODEL`。
 浏览器录音由服务器 FFmpeg 转为 16kHz 单声道 WAV；Agent 使用 LiveKit 官方 VAD StreamAdapter 按句调用同一 HTTP 接口。这是说完一句后识别，并非逐字流式 ASR。
 部署服务器必须安装 FFmpeg。密钥只保存在本地/服务器 `.env`，不可提交。
-TTS 仍使用 ElevenLabs；ASR 更换不会恢复 ElevenLabs 已耗尽的 TTS 额度。
+TTS 使用 DashScope 2.0 的 `qwen-audio-3.1-tts-flash`，音色 `longanhuan_v3.1`，24kHz 单声道 PCM。设置 `DASHSCOPE_WORKSPACE`、`QWEN_TTS_MODEL`、`QWEN_TTS_VOICE`；模型权限和额度由对应百炼业务空间管理。LiveKit 按句提交文本，逐块播放返回音频，不再依赖 ElevenLabs。

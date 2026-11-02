@@ -6,8 +6,9 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from livekit.agents import Agent, AgentServer, AgentSession, JobContext, TurnHandlingOptions, cli
-from livekit.plugins import elevenlabs, openai, silero
+from livekit.plugins import openai, silero
 from qwen_stt import QwenSTT
+from qwen_tts import QwenTTS
 
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / ".env")
@@ -44,7 +45,6 @@ server = AgentServer()
 @server.rtc_session(agent_name=AGENT_NAME)
 async def persona_voice(ctx: JobContext) -> None:
     ctx.log_context_fields = {"room": ctx.room.name}
-    eleven_api_key = required("ELEVENLABS_API_KEY")
     session = AgentSession(
         stt=QwenSTT(),
         llm=openai.LLM.with_deepseek(
@@ -53,13 +53,7 @@ async def persona_voice(ctx: JobContext) -> None:
             base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"),
             temperature=0.6,
         ),
-        tts=elevenlabs.TTS(
-            api_key=eleven_api_key,
-            voice_id=required("TTS_VOICE_ID"),
-            model=os.getenv("TTS_MODEL", "eleven_v4"),
-            language="zh",
-            enable_logging=False,
-        ),
+        tts=QwenTTS(),
         vad=silero.VAD.load(
             min_speech_duration=0.08,
             min_silence_duration=0.35,

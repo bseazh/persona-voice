@@ -225,7 +225,7 @@ function ConversationRoom({ mediaError, accessCode }: { mediaError: string; acce
       <div className="room-head">
         <div className="room-title">
           <div className="avatar"><Bot size={21} /></div>
-          <div><strong>小禾</strong><span>千问识别 · DeepSeek · ElevenLabs 语音</span></div>
+          <div><strong>小禾</strong><span>千问识别 · DeepSeek · 千问语音</span></div>
         </div>
         <div className={`state state-${state}`}><span className="state-dot" />{stateLabels[state] ?? state}</div>
       </div>
