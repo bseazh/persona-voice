@@ -45,6 +45,10 @@ button { cursor: pointer; }
 .mic-meter-large { height: 28px; border: 1px solid var(--line); border-radius: 8px; margin-top: 8px; }
 .mic-meter-large span { border-radius: 6px; background: linear-gradient(90deg, #3dbb8a, #61d7a4 65%, #f3c96b 85%, #ed786c); }
 .mic-scale { margin-top: 5px; font-size: 11px; }
+.input-modes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.input-modes button { padding: 9px 12px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: transparent; }
+.input-modes button[aria-pressed="true"] { background: rgba(97,215,164,.15); border-color: #61d7a4; }
+.input-modes button:disabled { opacity: .5; }
 .primary-button { width: 100%; min-height: 52px; margin-top: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; border: 0; border-radius: 13px; color: #06100b; background: var(--green); font-weight: 740; transition: transform .2s ease, filter .2s ease; }
 .primary-button:hover { filter: brightness(1.06); transform: translateY(-1px); }
 .primary-button:disabled { cursor: wait; opacity: .62; transform: none; }

@@ -159,6 +159,7 @@ function ConversationRoom({ mediaError, accessCode, deviceId }: { mediaError: st
   const [textError, setTextError] = useState('');
   const [dictating, setDictating] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [inputMode, setInputMode] = useState<'realtime' | 'recording'>('realtime');
   const [recordingUrl, setRecordingUrl] = useState('');
   const [recordingLevel, setRecordingLevel] = useState(0);
   const [recordingDevice, setRecordingDevice] = useState('');
@@ -200,6 +201,7 @@ function ConversationRoom({ mediaError, accessCode, deviceId }: { mediaError: st
       if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') throw new Error('当前浏览器不支持录音，请使用新版浏览器。');
       // Keep live ASR muted so this utterance cannot trigger two replies.
       await localParticipant.setMicrophoneEnabled(false);
+      setInputMode('recording');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: deviceId ? { exact: deviceId } : undefined, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       recordingStreamRef.current = stream;
       setRecordingUrl('');
@@ -281,6 +283,17 @@ function ConversationRoom({ mediaError, accessCode, deviceId }: { mediaError: st
       </div>
 
       <div className="conversation" ref={scrollRef}>
+        <div className="input-modes" role="group" aria-label="对话模式">
+          <button type="button" aria-pressed={inputMode === 'realtime'} disabled={dictating || transcribing} onClick={async () => {
+            try { await localParticipant.setMicrophoneEnabled(true); setInputMode('realtime'); setTextError(''); }
+            catch { setTextError('无法开启实时麦克风，请检查设备连接。'); }
+          }}>实时对话</button>
+          <button type="button" aria-pressed={inputMode === 'recording'} disabled={dictating || transcribing} onClick={async () => {
+            try { await localParticipant.setMicrophoneEnabled(false); setInputMode('recording'); }
+            catch { setTextError('无法切换录音模式，请重试。'); }
+          }}>录音转文字（备用）</button>
+        </div>
+        <p className="privacy">{inputMode === 'realtime' ? '直接说话即可，停顿后自动回复；助手说话时也可以开口打断。' : '点击输入框旁的麦克风录音，停止后确认文字再发送。'}</p>
         <div className={`microphone-status ${isMicrophoneEnabled ? 'microphone-ready' : 'microphone-blocked'}`} role="status">
           {isMicrophoneEnabled
             ? '实时通话麦克风已开启'
@@ -354,7 +367,7 @@ function ConversationRoom({ mediaError, accessCode, deviceId }: { mediaError: st
       </form>
 
       <div className="controls">
-        <TrackToggle className="control-button" source={Track.Source.Microphone} showIcon>
+        <TrackToggle className="control-button" source={Track.Source.Microphone} showIcon disabled={dictating || transcribing} onChange={(enabled) => { if (enabled) setInputMode('realtime'); }}>
           <Mic size={19} />
         </TrackToggle>
         <DisconnectButton className="control-button disconnect">

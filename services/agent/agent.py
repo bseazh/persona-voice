@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from livekit.agents import Agent, AgentServer, AgentSession, JobContext, TurnHandlingOptions, cli
 from livekit.plugins import openai, silero
 from qwen_stt import QwenSTT
+from qwen_streaming_stt import QwenStreamingSTT
 from qwen_tts import QwenTTS
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -46,7 +47,7 @@ server = AgentServer()
 async def persona_voice(ctx: JobContext) -> None:
     ctx.log_context_fields = {"room": ctx.room.name}
     session = AgentSession(
-        stt=QwenSTT(),
+        stt=QwenStreamingSTT() if os.getenv('ASR_MODE', 'streaming') == 'streaming' else QwenSTT(),
         llm=openai.LLM.with_deepseek(
             api_key=required("DEEPSEEK_API_KEY"),
             model=os.getenv("LLM_MODEL", "deepseek-chat"),
@@ -56,14 +57,14 @@ async def persona_voice(ctx: JobContext) -> None:
         tts=QwenTTS(),
         vad=silero.VAD.load(
             min_speech_duration=0.08,
-            min_silence_duration=0.35,
+            min_silence_duration=0.5,
             prefix_padding_duration=0.3,
             activation_threshold=0.35,
         ),
         transcription_timeout=4.0,
         turn_handling=TurnHandlingOptions(
             turn_detection="vad",
-            endpointing={"min_delay": 0.25, "max_delay": 1.2},
+            endpointing={"min_delay": 0.45, "max_delay": 1.5},
             interruption={"enabled": True, "min_duration": 0.35},
             preemptive_generation={"enabled": True},
         ),
