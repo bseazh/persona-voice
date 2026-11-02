@@ -39,6 +39,12 @@ button { cursor: pointer; }
 .mic-meter { height: 7px; margin-top: 12px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.07); }
 .mic-meter span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #61d7a4, #f3c96b); transition: width 80ms linear; }
 .mic-test p { margin: 9px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.mic-device { width: 100%; margin-top: 14px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #18232a; color: var(--ink); font-size: 13px; }
+.mic-level-label, .mic-scale { display: flex; justify-content: space-between; gap: 8px; margin-top: 12px; font-size: 12px; color: var(--muted); }
+.mic-level-label strong { color: var(--ink); font-weight: 500; }
+.mic-meter-large { height: 28px; border: 1px solid var(--line); border-radius: 8px; margin-top: 8px; }
+.mic-meter-large span { border-radius: 6px; background: linear-gradient(90deg, #3dbb8a, #61d7a4 65%, #f3c96b 85%, #ed786c); }
+.mic-scale { margin-top: 5px; font-size: 11px; }
 .primary-button { width: 100%; min-height: 52px; margin-top: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; border: 0; border-radius: 13px; color: #06100b; background: var(--green); font-weight: 740; transition: transform .2s ease, filter .2s ease; }
 .primary-button:hover { filter: brightness(1.06); transform: translateY(-1px); }
 .primary-button:disabled { cursor: wait; opacity: .62; transform: none; }

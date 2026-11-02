@@ -32,11 +32,14 @@ const stateLabels: Record<string, string> = {
   speaking: '正在回答',
 };
 
-function MicrophoneTest({ onReady }: { onReady: (ready: boolean) => void }) {
+function MicrophoneTest({ onReady, onDevice }: { onReady: (ready: boolean) => void; onDevice: (deviceId: string) => void }) {
   const [testing, setTesting] = useState(false);
   const [ready, setReady] = useState(false);
   const [heardVoice, setHeardVoice] = useState(false);
   const [level, setLevel] = useState(0);
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [deviceId, setDeviceId] = useState('');
+  const [db, setDb] = useState(-100);
   const [message, setMessage] = useState('进入房间前先确认麦克风有声音。');
   const streamRef = useRef<MediaStream | null>(null);
   const contextRef = useRef<AudioContext | null>(null);
@@ -53,7 +56,7 @@ function MicrophoneTest({ onReady }: { onReady: (ready: boolean) => void }) {
 
   useEffect(() => () => stopTest(), []);
 
-  async function beginTest() {
+  async function beginTest(selected = deviceId) {
     stopTest();
     setTesting(true);
     setReady(false);
@@ -64,33 +67,41 @@ function MicrophoneTest({ onReady }: { onReady: (ready: boolean) => void }) {
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('unsupported');
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        audio: { deviceId: selected ? { exact: selected } : undefined, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         video: false,
       });
       const context = new AudioContext();
+      await context.resume();
       const analyser = context.createAnalyser();
-      analyser.fftSize = 256;
+      analyser.fftSize = 2048;
       analyser.smoothingTimeConstant = 0.72;
       context.createMediaStreamSource(stream).connect(analyser);
-      const samples = new Uint8Array(analyser.fftSize);
+      const samples = new Float32Array(analyser.fftSize);
       streamRef.current = stream;
       contextRef.current = context;
       setReady(true);
+      const actualDevice = stream.getAudioTracks()[0].getSettings().deviceId || selected;
+      setDeviceId(actualDevice);
+      onDevice(actualDevice);
+      setDevices((await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind === 'audioinput'));
       setMessage('麦克风已连接，请说一句话观察音量。');
-      onReady(true);
+      let voicedFrames = 0;
 
       const updateLevel = () => {
-        analyser.getByteTimeDomainData(samples);
+        analyser.getFloatTimeDomainData(samples);
         let sum = 0;
         for (const sample of samples) {
-          const normalized = (sample - 128) / 128;
-          sum += normalized * normalized;
+          sum += sample * sample;
         }
-        const nextLevel = Math.min(100, Math.sqrt(sum / samples.length) * 420);
+        const decibels = 20 * Math.log10(Math.max(0.00001, Math.sqrt(sum / samples.length)));
+        const nextLevel = Math.max(0, Math.min(100, (decibels + 60) / 60 * 100));
+        setDb(Math.round(decibels));
         setLevel(nextLevel);
-        if (nextLevel > 5) {
+        if (decibels > -45) voicedFrames++;
+        if (voicedFrames >= 20) {
           setHeardVoice(true);
-          setMessage('检测到声音，可以开始语音对话。');
+          onReady(true);
+          setMessage('已检测到持续声音，可以进入。音量测试不代表语音识别已通过。');
         }
         animationRef.current = requestAnimationFrame(updateLevel);
       };
@@ -116,19 +127,26 @@ function MicrophoneTest({ onReady }: { onReady: (ready: boolean) => void }) {
     <div className={`mic-test ${ready ? 'mic-test-ready' : ''}`}>
       <div className="mic-test-head">
         <span>{heardVoice ? '麦克风测试通过' : ready ? '等待声音输入' : '麦克风测试'}</span>
-        <button className="mic-test-button" type="button" onClick={beginTest} disabled={testing}>
+        <button className="mic-test-button" type="button" onClick={() => void beginTest()} disabled={testing}>
           <Mic size={15} />{testing ? '正在连接…' : ready ? '重新测试' : '测试麦克风'}
         </button>
       </div>
-      <div className="mic-meter" aria-label="麦克风输入音量">
-        <span style={{ width: `${Math.max(2, level)}%` }} />
+      {devices.length > 0 && <select className="mic-device" aria-label="选择麦克风" value={deviceId} disabled={testing} onChange={(event) => {
+        const selected = event.target.value;
+        setDeviceId(selected);
+        void beginTest(selected);
+      }}>{devices.map((device, index) => <option key={device.deviceId} value={device.deviceId}>{device.label || `麦克风 ${index + 1}`}</option>)}</select>}
+      <div className="mic-level-label"><strong>{ready ? db < -55 ? '未检测到明显声音' : db < -35 ? '声音较轻' : db > -6 ? '声音过大，请稍远离麦克风' : '音量清晰' : '点击测试，然后说一句完整的话'}</strong><span>{ready ? `${db} dBFS` : '等待测试'}</span></div>
+      <div className="mic-meter mic-meter-large" role="meter" aria-label="麦克风输入音量" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(level)}>
+        <span style={{ width: `${level}%` }} />
       </div>
+      <div className="mic-scale"><span>静音</span><span>轻声</span><span>清晰</span><span>过响</span></div>
       <p>{message}</p>
     </div>
   );
 }
 
-function ConversationRoom({ mediaError, accessCode }: { mediaError: string; accessCode: string }) {
+function ConversationRoom({ mediaError, accessCode, deviceId }: { mediaError: string; accessCode: string; deviceId: string }) {
   const { state, audioTrack } = useVoiceAssistant();
   const { isMicrophoneEnabled, lastMicrophoneError, localParticipant } = useLocalParticipant();
   const { chatMessages, send, isSending } = useChat();
@@ -182,7 +200,7 @@ function ConversationRoom({ mediaError, accessCode }: { mediaError: string; acce
       if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') throw new Error('当前浏览器不支持录音，请使用新版浏览器。');
       // Keep live ASR muted so this utterance cannot trigger two replies.
       await localParticipant.setMicrophoneEnabled(false);
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: deviceId ? { exact: deviceId } : undefined, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       recordingStreamRef.current = stream;
       setRecordingUrl('');
       setRecordingDevice(stream.getAudioTracks()[0]?.label || '默认麦克风');
@@ -355,6 +373,7 @@ export function VoiceAssistant() {
   const [error, setError] = useState('');
   const [mediaError, setMediaError] = useState('');
   const [microphoneReady, setMicrophoneReady] = useState(false);
+  const [deviceId, setDeviceId] = useState('');
 
   async function start(event: FormEvent) {
     event.preventDefault();
@@ -391,7 +410,7 @@ export function VoiceAssistant() {
             <p className="lead">支持实时语音与文字对话，也可以点击输入框旁的麦克风录音，确认识别文字后发送。</p>
             <form className="start-form" onSubmit={start}>
               <input className="code-input" type="password" autoComplete="current-password" placeholder="输入体验访问码" value={accessCode} onChange={(event) => setAccessCode(event.target.value)} aria-label="体验访问码" />
-              <MicrophoneTest onReady={setMicrophoneReady} />
+              <MicrophoneTest onReady={setMicrophoneReady} onDevice={setDeviceId} />
               <button className="primary-button" disabled={connecting || !microphoneReady} type="submit">
                 {connecting ? <Radio size={18} /> : <Sparkles size={18} />}
                 {connecting ? '正在建立实时连接…' : microphoneReady ? '开始语音对话' : '请先测试麦克风'}
@@ -405,9 +424,9 @@ export function VoiceAssistant() {
             token={connection.participantToken}
             serverUrl={connection.serverUrl}
             connect
-            audio={{ echoCancellation: true, noiseSuppression: true, autoGainControl: true }}
+            audio={{ deviceId: deviceId ? { exact: deviceId } : undefined, echoCancellation: true, noiseSuppression: true, autoGainControl: true }}
             video={false}
-            onDisconnected={() => setConnection(null)}
+            onDisconnected={() => { setConnection(null); setMicrophoneReady(false); }}
             onError={(reason) => setError(reason.message)}
             onMediaDeviceFailure={(failure, kind) => {
               if (kind !== 'audioinput') return;
@@ -421,7 +440,7 @@ export function VoiceAssistant() {
               setMediaError(message);
             }}
           >
-            <ConversationRoom mediaError={mediaError} accessCode={accessCode} />
+            <ConversationRoom mediaError={mediaError} accessCode={accessCode} deviceId={deviceId} />
           </LiveKitRoom>
         )}
       </div>
