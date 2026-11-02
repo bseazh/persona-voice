@@ -42,8 +42,25 @@ export async function POST(request: NextRequest) {
       signal: AbortSignal.timeout(45_000),
     });
     if (!response.ok) {
-      console.error('transcribe provider failure', response.status);
-      return NextResponse.json({ error: `千问语音识别请求失败（${response.status}），请检查服务权限、额度或稍后重试。` }, { status: 502 });
+      const failure = await response.json().catch(() => ({}));
+      // Keep provider diagnostics, but never log the request audio or credentials.
+      const safeIdentifier = (value: unknown) => typeof value === 'string' && /^[\w.:-]{1,160}$/.test(value) ? value : undefined;
+      const code = safeIdentifier(failure.code);
+      const reason = safeIdentifier(failure.message);
+      const requestId = safeIdentifier(failure.request_id);
+      console.error('qwen_asr_failure', { status: response.status, code, reason, requestId, bytes: file.size, wavBytes: wav.length });
+      const reference = requestId ? `（请求编号：${requestId}）` : '';
+      if (response.status === 400 && (reason === 'ASR_RESPONSE_HAVE_NO_WORDS' || code === 'ASR_RESPONSE_HAVE_NO_WORDS')) {
+        return NextResponse.json({ error: `千问未识别到有效语音。请确认录音时麦克风有声音，并说完一句话后再停止。${reference}`, code: 'NO_SPEECH', requestId }, { status: 422 });
+      }
+      const error = response.status === 401 || response.status === 403
+        ? '千问语音识别鉴权失败，请检查服务器 API Key 和服务权限。'
+        : response.status === 429
+          ? '千问语音识别请求受限，请稍后重试；管理员需检查服务限流或额度。'
+          : response.status === 400
+            ? '千问未接受本次识别请求，需要根据请求编号检查音频或服务参数。'
+            : `千问语音识别服务暂时失败（${response.status}），请稍后重试。`;
+      return NextResponse.json({ error: error + reference, code: code || 'ASR_UPSTREAM_ERROR', requestId }, { status: 502 });
     }
     const result = await response.json();
     const rawText = result.text ?? result.output?.text ?? result.output?.sentence?.text;

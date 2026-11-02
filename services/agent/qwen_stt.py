@@ -3,6 +3,7 @@ import base64
 import io
 import logging
 import os
+import re
 import time
 import wave
 
@@ -53,7 +54,26 @@ class QwenSTT(stt.STT):
                 'Authorization': f'Bearer {self.key}', 'X-DashScope-SSE': 'disable',
             }) as response:
                 if response.status != 200:
-                    raise APIStatusError('Qwen ASR request failed', status_code=response.status)
+                    try:
+                        failure = await response.json()
+                    except (ValueError, aiohttp.ContentTypeError):
+                        failure = {}
+                    def identifier(value):
+                        return value if isinstance(value, str) and re.fullmatch(r'[\w.:-]{1,160}', value) else None
+                    code = identifier(failure.get('code'))
+                    reason = identifier(failure.get('message'))
+                    request_id = identifier(failure.get('request_id'))
+                    if response.status == 400 and 'ASR_RESPONSE_HAVE_NO_WORDS' in (code, reason):
+                        # Background noise can pass VAD. This is an empty recognition,
+                        # not a broken STT service; let the adapter keep listening.
+                        logger.info('qwen_asr_no_speech', extra={'request_id': request_id,
+                                    'audio_seconds': len(pcm) / 32000})
+                        return stt.SpeechEvent(type=stt.SpeechEventType.FINAL_TRANSCRIPT,
+                                              alternatives=[], request_id=request_id or '')
+                    logger.error('qwen_asr_failure', extra={'status': response.status,
+                                 'provider_code': code, 'provider_reason': reason, 'request_id': request_id})
+                    raise APIStatusError(f'Qwen ASR request failed: {code or "unknown"}',
+                                         status_code=response.status, request_id=request_id)
                 result = await response.json()
         text = result.get('text') or result.get('output', {}).get('text') or result.get('output', {}).get('sentence', {}).get('text', '')
         logger.info('qwen_asr_result', extra={'audio_seconds': len(pcm) / 32000,
