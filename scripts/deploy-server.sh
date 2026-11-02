@@ -11,6 +11,7 @@ fi
 
 cd "$project_dir"
 test -s .env
+command -v ffmpeg >/dev/null || { sudo apt-get update && sudo apt-get install -y ffmpeg; }
 test -f web/.next/standalone/server.js
 test -d web/.next/static
 
