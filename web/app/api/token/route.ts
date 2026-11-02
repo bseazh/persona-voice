@@ -19,7 +19,7 @@ function rateLimited(ip: string): boolean {
 
 function matchesAccessCode(received: unknown, expected: string): boolean {
   if (typeof received !== 'string') return false;
-  const left = Buffer.from(received);
+  const left = Buffer.from(received.trim());
   const right = Buffer.from(expected);
   return left.length === right.length && timingSafeEqual(left, right);
 }

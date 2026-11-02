@@ -31,6 +31,14 @@ button { cursor: pointer; }
 .start-form { width: min(420px, 100%); margin: 38px auto 0; }
 .code-input { width: 100%; height: 48px; padding: 0 16px; color: var(--ink); background: rgba(255,255,255,0.04); border: 1px solid var(--line); border-radius: 12px; outline: none; }
 .code-input:focus { border-color: rgba(97,215,164,.55); box-shadow: 0 0 0 4px rgba(97,215,164,.08); }
+.mic-test { margin-top: 12px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 13px; background: rgba(255,255,255,.025); text-align: left; }
+.mic-test-ready { border-color: rgba(97,215,164,.32); }
+.mic-test-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--ink); font-size: 12px; font-weight: 650; }
+.mic-test-button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: rgba(255,255,255,.06); font-size: 11px; }
+.mic-test-button:disabled { cursor: wait; opacity: .6; }
+.mic-meter { height: 7px; margin-top: 12px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.07); }
+.mic-meter span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #61d7a4, #f3c96b); transition: width 80ms linear; }
+.mic-test p { margin: 9px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .primary-button { width: 100%; min-height: 52px; margin-top: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; border: 0; border-radius: 13px; color: #06100b; background: var(--green); font-weight: 740; transition: transform .2s ease, filter .2s ease; }
 .primary-button:hover { filter: brightness(1.06); transform: translateY(-1px); }
 .primary-button:disabled { cursor: wait; opacity: .62; transform: none; }
@@ -47,6 +55,9 @@ button { cursor: pointer; }
 .state-speaking .state-dot, .state-listening .state-dot { background: var(--green); box-shadow: 0 0 12px var(--green); }
 .state-thinking .state-dot, .state-connecting .state-dot, .state-initializing .state-dot { background: #f3c96b; }
 .conversation { min-height: 0; overflow-y: auto; padding: 30px 28px; }
+.microphone-status { width: fit-content; margin: 0 auto 20px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; text-align: center; }
+.microphone-ready { color: var(--green); background: rgba(97, 215, 164, .08); }
+.microphone-blocked { color: #ffd08a; background: rgba(243, 201, 107, .08); }
 .visualizer-wrap { height: 118px; display: grid; place-items: center; margin-bottom: 24px; }
 .visualizer { width: min(440px, 90%); height: 86px; --lk-va-bar-width: 5px; --lk-bg: transparent; --lk-fg: var(--green); }
 .waiting { color: var(--muted); font-size: 14px; }
