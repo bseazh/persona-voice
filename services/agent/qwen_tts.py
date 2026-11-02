@@ -11,7 +11,7 @@ class QwenTTS(tts.TTS):
     def __init__(self):
         super().__init__(capabilities=tts.TTSCapabilities(streaming=False),
                          sample_rate=24000, num_channels=1)
-        self.key = os.environ['DASHSCOPE_API_KEY']
+        self.key = os.getenv('DASHSCOPE_TTS_API_KEY') or os.environ['DASHSCOPE_API_KEY']
         self.workspace = os.environ['DASHSCOPE_WORKSPACE']
         self.voice = os.getenv('QWEN_TTS_VOICE', 'longanhuan_v3.1')
 

@@ -6,6 +6,7 @@ import {
   DisconnectButton,
   RoomContext,
   RoomAudioRenderer,
+  StartAudio,
   TrackToggle,
   useChat,
   useLocalParticipant,
@@ -374,6 +375,7 @@ function ConversationRoom({ mediaError, accessCode, deviceId }: { mediaError: st
           <PhoneOff size={18} /> 结束对话
         </DisconnectButton>
       </div>
+      <StartAudio className="primary-button" label="点击开启助手声音" />
       <RoomAudioRenderer />
     </section>
   );
