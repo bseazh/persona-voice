@@ -1,6 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { toWav } from '../../../lib/qwen-asr';
+import { toWav, wavMetrics } from '../../../lib/qwen-asr';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '录音为空或超过 5MB，请重新录制。' }, { status: 400 });
     }
     const wav = await toWav(Buffer.from(await file.arrayBuffer()));
+    const metrics = wavMetrics(wav);
     const response = await fetch(url, {
       method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'X-DashScope-SSE': 'disable' },
       body: JSON.stringify({
@@ -48,10 +49,13 @@ export async function POST(request: NextRequest) {
       const code = safeIdentifier(failure.code);
       const reason = safeIdentifier(failure.message);
       const requestId = safeIdentifier(failure.request_id);
-      console.error('qwen_asr_failure', { status: response.status, code, reason, requestId, bytes: file.size, wavBytes: wav.length });
+      console.error('qwen_asr_failure', { status: response.status, code, reason, requestId, bytes: file.size, wavBytes: wav.length, metrics });
       const reference = requestId ? `（请求编号：${requestId}）` : '';
       if (response.status === 400 && (reason === 'ASR_RESPONSE_HAVE_NO_WORDS' || code === 'ASR_RESPONSE_HAVE_NO_WORDS')) {
-        return NextResponse.json({ error: `千问未识别到有效语音。请确认录音时麦克风有声音，并说完一句话后再停止。${reference}`, code: 'NO_SPEECH', requestId }, { status: 422 });
+        const detail = metrics && metrics.peakDb < -55
+          ? '服务器收到的录音接近静音，请试听录音并检查麦克风输入设备。'
+          : '录音中有音频信号，但千问没有识别出文字。请试听录音，确认人声清晰；噪声也会产生音频信号。';
+        return NextResponse.json({ error: `${detail}${reference}`, code: 'NO_SPEECH', requestId, metrics }, { status: 422 });
       }
       const error = response.status === 401 || response.status === 403
         ? '千问语音识别鉴权失败，请检查服务器 API Key 和服务权限。'

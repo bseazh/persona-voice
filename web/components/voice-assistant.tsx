@@ -141,8 +141,23 @@ function ConversationRoom({ mediaError, accessCode }: { mediaError: string; acce
   const [textError, setTextError] = useState('');
   const [dictating, setDictating] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [recordingUrl, setRecordingUrl] = useState('');
+  const [recordingLevel, setRecordingLevel] = useState(0);
+  const [recordingDevice, setRecordingDevice] = useState('');
+  const meterRef = useRef<{ context: AudioContext; timer: ReturnType<typeof setInterval> } | null>(null);
+
+  function stopMeter() {
+    if (meterRef.current) {
+      clearInterval(meterRef.current.timer);
+      void meterRef.current.context.close();
+      meterRef.current = null;
+    }
+  }
+
+  useEffect(() => () => { if (recordingUrl) URL.revokeObjectURL(recordingUrl); }, [recordingUrl]);
 
   useEffect(() => () => {
+    stopMeter();
     if (timerRef.current) clearTimeout(timerRef.current);
     if (recorderRef.current) {
       recorderRef.current.onstop = null;
@@ -169,18 +184,34 @@ function ConversationRoom({ mediaError, accessCode }: { mediaError: string; acce
       await localParticipant.setMicrophoneEnabled(false);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       recordingStreamRef.current = stream;
+      setRecordingUrl('');
+      setRecordingDevice(stream.getAudioTracks()[0]?.label || '默认麦克风');
+      setRecordingLevel(0);
+      const context = new AudioContext();
+      await context.resume();
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 2048;
+      context.createMediaStreamSource(stream).connect(analyser);
+      const samples = new Float32Array(analyser.fftSize);
+      meterRef.current = { context, timer: setInterval(() => {
+        analyser.getFloatTimeDomainData(samples);
+        const rms = Math.sqrt(samples.reduce((sum, value) => sum + value * value, 0) / samples.length);
+        setRecordingLevel(Math.min(100, rms * 500));
+      }, 100) };
       const mimeType = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find((type) => MediaRecorder.isTypeSupported(type));
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       recorderRef.current = recorder;
       const chunks: Blob[] = [];
       recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
       recorder.onstop = async () => {
+        stopMeter();
         if (timerRef.current) clearTimeout(timerRef.current);
         stream.getTracks().forEach((track) => track.stop());
         setDictating(false);
         setTranscribing(true);
         try {
           const blob = new Blob(chunks, { type: recorder.mimeType });
+          setRecordingUrl(URL.createObjectURL(blob));
           const form = new FormData();
           form.set('audio', blob, recorder.mimeType.includes('mp4') ? 'recording.m4a' : 'recording.webm');
           const response = await fetch('/api/transcribe', {
@@ -201,6 +232,7 @@ function ConversationRoom({ mediaError, accessCode }: { mediaError: string; acce
       setTranscribing(false);
       timerRef.current = setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, 60_000);
     } catch (error) {
+      stopMeter();
       recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
       setTranscribing(false);
       setTextError(error instanceof Error ? error.message : '无法开始录音');
@@ -293,6 +325,14 @@ function ConversationRoom({ mediaError, accessCode }: { mediaError: string; acce
         </div>
         <p className="privacy" role="status">{dictating ? '正在录音，再点麦克风停止并识别（最长 60 秒）。' : transcribing ? '正在准备录音或识别，请稍候…' : '点击麦克风录音 → 再点停止 → 文字填入后确认发送。录音模式会关闭实时通话麦克风。'}</p>
         {textError && <p className="error">{textError}</p>}
+        {dictating && <div className="mic-test">
+          <p>正在录制：{recordingDevice} · 请观察说话时音量是否变化</p>
+          <div className="mic-meter" aria-label="录音输入音量"><span style={{ width: `${Math.max(2, recordingLevel)}%` }} /></div>
+        </div>}
+        {recordingUrl && <div className="mic-test">
+          <p>试听刚才实际上传的录音（仅保留在当前页面）：</p>
+          <audio controls src={recordingUrl} style={{ width: '100%' }} />
+        </div>}
       </form>
 
       <div className="controls">

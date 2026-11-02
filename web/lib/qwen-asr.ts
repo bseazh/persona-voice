@@ -1,5 +1,27 @@
 import { spawn } from 'node:child_process';
 
+// Inspect the decoded PCM, not compressed upload size: an encoded file may be silent.
+export function wavMetrics(wav: Buffer) {
+  for (let offset = 12; offset + 8 <= wav.length;) {
+    const size = wav.readUInt32LE(offset + 4);
+    if (wav.toString('ascii', offset, offset + 4) === 'data') {
+      const end = Math.min(wav.length, offset + 8 + size);
+      let sum = 0, peak = 0, count = 0;
+      for (let i = offset + 8; i + 2 <= end; i += 2) {
+        const value = wav.readInt16LE(i) / 32768;
+        sum += value * value;
+        peak = Math.max(peak, Math.abs(value));
+        count++;
+      }
+      return { seconds: Number((count / 16000).toFixed(2)),
+        rmsDb: Number((20 * Math.log10(Math.max(1e-8, Math.sqrt(sum / Math.max(count, 1))))).toFixed(1)),
+        peakDb: Number((20 * Math.log10(Math.max(1e-8, peak))).toFixed(1)) };
+    }
+    offset += 8 + size + (size % 2);
+  }
+  return null;
+}
+
 export async function toWav(audio: Buffer): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const child = spawn('ffmpeg', ['-v', 'error', '-i', 'pipe:0', '-t', '60', '-ac', '1', '-ar', '16000', '-f', 'wav', 'pipe:1']);
