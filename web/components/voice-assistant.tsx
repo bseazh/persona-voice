@@ -15,31 +15,6 @@ import {
 import { Bot, Mic, PhoneOff, Radio, Send, Sparkles } from 'lucide-react';
 import { MediaDeviceFailure, Track } from 'livekit-client';
 
-type BrowserSpeechResult = { transcript: string };
-type BrowserSpeechEvent = {
-  resultIndex: number;
-  results: ArrayLike<{ isFinal: boolean; 0: BrowserSpeechResult }>;
-};
-type BrowserSpeechErrorEvent = { error: string };
-type BrowserSpeechRecognition = {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  onresult: ((event: BrowserSpeechEvent) => void) | null;
-  onerror: ((event: BrowserSpeechErrorEvent) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
-type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
-
-declare global {
-  interface Window {
-    SpeechRecognition?: BrowserSpeechRecognitionConstructor;
-    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
-  }
-}
-
 type ConnectionDetails = {
   serverUrl: string;
   roomName: string;
@@ -153,60 +128,83 @@ function MicrophoneTest({ onReady }: { onReady: (ready: boolean) => void }) {
   );
 }
 
-function ConversationRoom({ mediaError }: { mediaError: string }) {
+function ConversationRoom({ mediaError, accessCode }: { mediaError: string; accessCode: string }) {
   const { state, audioTrack } = useVoiceAssistant();
   const { isMicrophoneEnabled, lastMicrophoneError, localParticipant } = useLocalParticipant();
   const { chatMessages, send, isSending } = useChat();
   const transcriptions = useTranscriptions();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
-  const speechBaseRef = useRef('');
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [textInput, setTextInput] = useState('');
   const [textError, setTextError] = useState('');
   const [dictating, setDictating] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (recorderRef.current) {
+      recorderRef.current.onstop = null;
+      if (recorderRef.current.state !== 'inactive') recorderRef.current.stop();
+    }
+    recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [chatMessages, transcriptions]);
 
-  function toggleDictation() {
+  async function toggleDictation() {
     if (dictating) {
-      recognitionRef.current?.stop();
+      if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
       return;
     }
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Recognition) {
-      setTextError('当前浏览器不支持备用语音输入，请使用 Chrome 或 Safari，或直接输入文字。');
-      return;
-    }
-
-    const recognition = new Recognition();
-    recognition.lang = 'zh-CN';
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    speechBaseRef.current = textInput.trim();
-    recognition.onresult = (event) => {
-      let spoken = '';
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        spoken += event.results[index][0].transcript;
-      }
-      const base = speechBaseRef.current;
-      setTextInput(base ? `${base} ${spoken}` : spoken);
-    };
-    recognition.onerror = (event) => {
-      setDictating(false);
-      setTextError(event.error === 'not-allowed'
-        ? '浏览器语音输入权限被拒绝，请允许麦克风。'
-        : '浏览器语音输入失败，请再试一次或直接输入文字。');
-    };
-    recognition.onend = () => {
-      setDictating(false);
-      recognitionRef.current = null;
-    };
-    recognitionRef.current = recognition;
+    if (transcribing) return;
     setTextError('');
-    setDictating(true);
-    recognition.start();
+    setTranscribing(true);
+    try {
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') throw new Error('当前浏览器不支持录音，请使用新版浏览器。');
+      // Keep live ASR muted so this utterance cannot trigger two replies.
+      await localParticipant.setMicrophoneEnabled(false);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordingStreamRef.current = stream;
+      const mimeType = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find((type) => MediaRecorder.isTypeSupported(type));
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      recorderRef.current = recorder;
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+      recorder.onstop = async () => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        stream.getTracks().forEach((track) => track.stop());
+        setDictating(false);
+        setTranscribing(true);
+        try {
+          const blob = new Blob(chunks, { type: recorder.mimeType });
+          const form = new FormData();
+          form.set('audio', blob, recorder.mimeType.includes('mp4') ? 'recording.m4a' : 'recording.webm');
+          const response = await fetch('/api/transcribe', {
+            method: 'POST', headers: { 'x-voice-access-code': accessCode.trim() },
+            body: form, signal: AbortSignal.timeout(55_000),
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || `识别请求失败（${response.status}）`);
+          setTextInput((previous) => `${previous.trim()} ${result.text}`.trim().slice(0, 500));
+        } catch (error) {
+          setTextError(error instanceof Error ? error.message : '录音识别失败');
+        } finally {
+          setTranscribing(false);
+        }
+      };
+      recorder.start();
+      setDictating(true);
+      setTranscribing(false);
+      timerRef.current = setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, 60_000);
+    } catch (error) {
+      recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+      setTranscribing(false);
+      setTextError(error instanceof Error ? error.message : '无法开始录音');
+    }
   }
 
   async function submitText(event: FormEvent) {
@@ -235,10 +233,10 @@ function ConversationRoom({ mediaError }: { mediaError: string }) {
       <div className="conversation" ref={scrollRef}>
         <div className={`microphone-status ${isMicrophoneEnabled ? 'microphone-ready' : 'microphone-blocked'}`} role="status">
           {isMicrophoneEnabled
-            ? '麦克风已开启，正在实时传输声音'
+            ? '实时通话麦克风已开启'
             : mediaError || lastMicrophoneError
               ? '麦克风不可用：请在浏览器地址栏的网站权限中允许麦克风，然后重新进入。'
-              : '麦克风当前关闭，请点击下方麦克风按钮开启。'}
+              : '实时通话已静音；可使用输入框旁的录音按钮，或开启下方通话麦克风。'}
         </div>
         <div className="visualizer-wrap">
           {audioTrack ? (
@@ -274,23 +272,26 @@ function ConversationRoom({ mediaError }: { mediaError: string }) {
           <input
             value={textInput}
             onChange={(event) => setTextInput(event.target.value)}
-            placeholder="语音没反应时，在这里输入文字测试 DeepSeek 和语音回复"
+            placeholder="输入消息，或点击右侧麦克风录音"
             aria-label="手动输入消息"
             maxLength={500}
+            disabled={dictating || transcribing}
           />
           <button
             className={`dictation-button ${dictating ? 'dictation-active' : ''}`}
             type="button"
             onClick={toggleDictation}
+            disabled={transcribing}
             aria-label={dictating ? '停止语音输入' : '使用语音输入文字'}
-            title="使用浏览器语音输入填充文字框"
+            title={dictating ? '停止录音并识别' : '录音转文字'}
           >
             <Mic size={17} />
           </button>
-          <button type="submit" disabled={isSending || !textInput.trim()} aria-label="发送文字消息">
+          <button type="submit" disabled={dictating || transcribing || isSending || !textInput.trim()} aria-label="发送文字消息">
             <Send size={17} />{isSending ? '发送中' : '发送'}
           </button>
         </div>
+        <p className="privacy" role="status">{dictating ? '正在录音，再点麦克风停止并识别（最长 60 秒）。' : transcribing ? '正在准备录音或识别，请稍候…' : '点击麦克风录音 → 再点停止 → 文字填入后确认发送。录音模式会关闭实时通话麦克风。'}</p>
         {textError && <p className="error">{textError}</p>}
       </form>
 
@@ -347,7 +348,7 @@ export function VoiceAssistant() {
           <section className="welcome">
             <p className="eyebrow">Realtime voice agent</p>
             <h1>像打电话一样，<br />自然地聊起来。</h1>
-            <p className="lead">浏览器通过 WebRTC 直连 LiveKit。没有录音上传、Base64 转换或临时音频地址，支持实时字幕、连续对话和随时打断。</p>
+            <p className="lead">支持实时语音与文字对话，也可以点击输入框旁的麦克风录音，确认识别文字后发送。</p>
             <form className="start-form" onSubmit={start}>
               <input className="code-input" type="password" autoComplete="current-password" placeholder="输入体验访问码" value={accessCode} onChange={(event) => setAccessCode(event.target.value)} aria-label="体验访问码" />
               <MicrophoneTest onReady={setMicrophoneReady} />
@@ -380,7 +381,7 @@ export function VoiceAssistant() {
               setMediaError(message);
             }}
           >
-            <ConversationRoom mediaError={mediaError} />
+            <ConversationRoom mediaError={mediaError} accessCode={accessCode} />
           </LiveKitRoom>
         )}
       </div>
