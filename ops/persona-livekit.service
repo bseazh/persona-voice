@@ -1,0 +1,20 @@
+[Unit]
+Description=Persona self-hosted LiveKit SFU
+After=network-online.target redis-server.service
+Wants=network-online.target
+Requires=redis-server.service
+
+[Service]
+User=ubuntu
+Group=ubuntu
+ExecStart=/usr/local/bin/livekit-server --config /etc/persona-livekit/livekit.yaml
+Restart=always
+RestartSec=3
+LimitNOFILE=65536
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

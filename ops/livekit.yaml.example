@@ -1,0 +1,21 @@
+# Credentials are generated on the server in /etc/persona-livekit/livekit.yaml.
+port: 7880
+rtc:
+  tcp_port: 5052
+  udp_port: 5053
+  use_external_ip: false
+  node_ip: 134.175.154.244
+  advertise_internal_ip: true
+  interfaces:
+    includes:
+      - eth0
+redis:
+  address: 127.0.0.1:6379
+keys:
+  REPLACE_API_KEY: REPLACE_API_SECRET
+logging:
+  level: info
+room:
+  empty_timeout: 120
+  departure_timeout: 20
+  max_participants: 10

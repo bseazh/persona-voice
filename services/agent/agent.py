@@ -40,7 +40,7 @@ class PersonaAssistant(Agent):
         )
 
 
-server = AgentServer()
+server = AgentServer(num_idle_processes=int(os.getenv('LIVEKIT_AGENT_IDLE_PROCESSES', '1')))
 
 
 @server.rtc_session(agent_name=AGENT_NAME)

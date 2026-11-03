@@ -1,4 +1,9 @@
 phone.hehaizhao.site {
     encode zstd gzip
-    reverse_proxy 127.0.0.1:5050
+    handle_path /livekit/* {
+        reverse_proxy 127.0.0.1:7880
+    }
+    handle {
+        reverse_proxy 127.0.0.1:5050
+    }
 }
