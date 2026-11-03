@@ -8,19 +8,92 @@
 
 ## 当前架构
 
-```text
-浏览器麦克风 ─────────── WebRTC ────────────┐
-                                          │
-接听手机 ↔ 运营商网络 ↔ 安卓 SIM 拨号手机     │
-                       ↕ Voice SIP Agent  │
-                    Asterisk              │
-                       ↕ 本机 SIP/RTP     │
-                    LiveKit SIP ──────────┤
-                                          ↕
-                                腾讯云自建 LiveKit 房间
-                                          ↕
-                                   Python Voice Agent
-                           千问流式 ASR → DeepSeek → 千问 TTS
+下图展示当前部署、音频流向与调试通道；商业 SIP 中继为未来方案，尚未接入。USB / ADB 只用于配置和排障，不承载实际通话音频。
+
+```mermaid
+flowchart TB
+    subgraph CLIENT["第一层：操作与体验"]
+        WEB["浏览器网页<br/>Next.js + LiveKit React<br/>实时对话、音量检测、录音识别"]
+        PC["开发电脑<br/>ADB / USB 调试"]
+    end
+
+    subgraph SERVER["腾讯云服务器：当前自建部署"]
+        subgraph ACCESS["第二层：网站入口"]
+            CADDY["Caddy<br/>HTTPS 证书与反向代理"]
+            API["Web 后端<br/>访问验证、房间令牌、备用录音识别"]
+        end
+
+        subgraph RTC["第三层：实时通信"]
+            LK["LiveKit Server<br/>房间管理、参与者管理、实时音频传输"]
+            REDIS["Redis<br/>LiveKit / SIP 状态与路由协调"]
+        end
+
+        subgraph AI["第四层：AI 对话编排"]
+            AGENT["Python Voice Agent<br/>上下文、轮次管理、主动问候、插话打断"]
+            VAD["Silero VAD<br/>本地检测说话与停顿"]
+        end
+
+        subgraph TELEPHONY["第五层：电话桥接与路由"]
+            LKSIP["LiveKit SIP<br/>SIP / RTP 电话与 LiveKit 房间互通"]
+            AST["Asterisk 软件电话交换机<br/>网关注册、号码限制、拨号、双向音频桥接"]
+        end
+    end
+
+    subgraph MODELS["第六层：外部 AI 模型服务"]
+        ASR["阿里云千问流式 ASR<br/>语音转文字<br/>16 kHz PCM 输入"]
+        BATCHASR["阿里云千问录音 ASR<br/>备用录音识别<br/>16 kHz 单声道 WAV"]
+        LLM["DeepSeek LLM<br/>根据上下文生成回答"]
+        TTS["阿里云千问 TTS<br/>文字转语音<br/>24 kHz PCM 输出"]
+    end
+
+    subgraph GATEWAY["第七层：当前安卓 SIM 电话出口"]
+        VSA["Voice SIP Agent<br/>连接 Asterisk、控制拨号<br/>转发蜂窝通话双向音频"]
+        SHIZUKU["Shizuku<br/>为网关提供已授权的系统接口访问能力"]
+        SIM["K60 Pro + 实体 SIM<br/>当前配置 SIM 2，逻辑槽位 1<br/>实体 SIM 决定实际主叫号码"]
+    end
+
+    subgraph NETWORK["第八层：运营商与接听端"]
+        CARRIER["运营商蜂窝网络 / 公共电话网"]
+        PHONE["接听者手机或座机<br/>无需安装 App"]
+    end
+
+    subgraph FUTURE["后续商业化替换方案：尚需采购和对接"]
+        TRUNK["国内供应商 SIP 中继<br/>获批主叫号码、并发通道、通话计费<br/>替换安卓手机与 SIM 网关"]
+    end
+
+    WEB <-->|"HTTPS / WSS，TCP 443"| CADDY
+    CADDY <-->|"内部 HTTP"| API
+    CADDY <-->|"LiveKit 信令，内部 WS 7880"| LK
+    API -->|"返回签名房间令牌<br/>内含 Agent 调度配置"| WEB
+    API <-->|"HTTPS：录音识别请求与文字结果"| BATCHASR
+    WEB <-->|"WebRTC 加密音频<br/>UDP 5053 / TCP 5052 回退"| LK
+
+    LK <-->|"LiveKit SDK：实时音频与会话事件"| AGENT
+    VAD -->|"说话、停顿判断"| AGENT
+
+    AGENT -->|"WSS：持续发送音频"| ASR
+    ASR -->|"中间识别与最终文字"| AGENT
+    AGENT -->|"HTTPS：文字与上下文"| LLM
+    LLM -->|"流式回答文本"| AGENT
+    AGENT -->|"WSS：按句提交文本"| TTS
+    TTS -->|"分块返回合成音频"| AGENT
+
+    LK <-->|"LiveKit SDK：音频轨道"| LKSIP
+    LK --- REDIS
+    LKSIP --- REDIS
+
+    AST <-->|"本机 SIP / UDP：5062 与 5060<br/>RTP / UDP：SIP 桥使用 20000 至 20099"| LKSIP
+    AST <-->|"公网 SIP / TCP 5054：注册与呼叫控制<br/>RTP / UDP 10000 至 10019：服务器音频端口"| VSA
+
+    PC -.->|"USB：安装、配置、启动调试服务<br/>不传输实际通话音频"| SHIZUKU
+    PC -.->|"ADB：配置与排障"| VSA
+    SHIZUKU -->|"授权系统接口访问"| VSA
+    VSA <-->|"手机系统电话与音频接口"| SIM
+    SIM <-->|"蜂窝语音通话"| CARRIER
+    CARRIER <-->|"真实电话双向语音"| PHONE
+
+    AST -.->|"未来路径：按供应商要求配置 SIP / RTP"| TRUNK
+    TRUNK -.->|"运营商电话接续"| CARRIER
 ```
 
 - 实时模式：持续输入麦克风音频、显示识别结果，自动判断说话结束并回复，支持插话打断。
