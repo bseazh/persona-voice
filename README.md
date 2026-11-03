@@ -214,6 +214,8 @@ Python 语法检查 → 前端依赖审计 / lint / build
 
 ## 手机 SIM 测试
 
+已提供[私有网页电话控制台与网关恢复工具](docs/PHONE_GATEWAY_OPERATIONS.md)：通过 SSH 隧道访问，支持受限拨号、挂断和状态查看。脱离 USB、手机重启与长期待机的验收状态也在该文档中逐项记录。
+
 验证设备：K60 Pro、Android 16、Shizuku、Voice SIP Agent；当前有效卡为 SIM 2（逻辑槽位 `1`）。安卓 SDK 本身不保证能访问蜂窝通话音频；换手机、系统或 SIM 后都要重新验证。USB 用于调试与配置，通话音频通过网络传输。
 
 1. 确认网关就绪、Shizuku 已连接、SIM 槽位正确，接听人同意测试。

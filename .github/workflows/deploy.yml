@@ -28,6 +28,9 @@ jobs:
       - name: Validate Agent source
         run: python -m compileall -q services/agent
 
+      - name: Test private phone console safeguards
+        run: python -m unittest discover -s tests -p test_phone_console.py -v
+
       - name: Set up Node
         uses: actions/setup-node@v6
         with:

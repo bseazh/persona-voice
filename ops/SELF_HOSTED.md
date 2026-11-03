@@ -43,7 +43,7 @@ then test the LiveKit SIP bridge and voice Agent (see `ops/SIM_AI.md`).
 SIP registration alone is not proof that cellular audio works.
 Latest dialing SIM number supplied by the user is 19221659824; the actual
 caller number comes from the physical SIM, not an overridden SIP caller ID.
-Latest recipient and gateway allowed prefix are 13660199577. Both the
+Latest recipient and gateway allowed prefix are 15820242347. Both the
 gateway default SIM and Asterisk X-VSA-SIMSLOT must use slot 1.
 Confirm availability before resuming manual listening tests. Inbound
 takeover stays disabled. This configuration change does not initiate a call.

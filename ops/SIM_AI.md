@@ -1,7 +1,7 @@
 # SIM to AI voice bridge
 
 Current test roles: dialing SIM 19221659824 (user-supplied number), receiving
-phone 13660199577. Android currently reports China Broadnet in slot 1 (SIM 2).
+phone 15820242347. Android currently reports China Broadnet in slot 1 (SIM 2).
 Caller identity on the cellular network comes from that physical SIM.
 
 ```text
@@ -40,7 +40,7 @@ Before a real call, confirm recipient availability, `adb` gateway readiness,
 `pjsip show contacts`, and that no channels are active. After authorization:
 
 ```sh
-sudo asterisk -rx 'channel originate Local/13660199577@sim-ai-outbound extension s@livekit-ai'
+sudo asterisk -rx 'channel originate Local/15820242347@sim-ai-outbound extension s@livekit-ai'
 ```
 
 The route allows only the current test recipient, uses the existing SIM slot

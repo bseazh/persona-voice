@@ -1,0 +1,6 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Persona 电话控制台</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<body><main><p class="eyebrow">PERSONA VOICE · 私有管理</p><h1>电话控制台</h1><p>使用专用安卓 SIM 手机，连接 AI 小禾。</p>
+<section><h2>线路状态</h2><p id="gateway">正在检查网关…</p><p id="call">正在读取通话状态…</p><small>在线仅表示 SIP 注册成功，不代表手机音频、Shizuku 和模型都正常。</small></section>
+<section><h2>发起 AI 通话</h2><label for="number">允许拨打的接听号码</label><select id="number"></select><p>当前线路：SIM 2。接通后最长 180 秒；每次只允许一通电话。</p><label class="check"><input id="consent" type="checkbox">接听人已同意，号码已确认，可以现在拨打。</label><div class="actions"><button id="dial" disabled>拨打 AI 电话</button><button id="hangup" disabled>挂断本控制台通话</button></div><p id="result" role="status" aria-live="polite"></p></section>
+<footer>关闭网页不会挂断电话。需要结束时请点击挂断，或由接听人挂断。网关离线时请先使用电脑上的检查恢复工具。</footer></main></body></html>
