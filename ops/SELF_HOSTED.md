@@ -35,10 +35,15 @@ Validation:
 - A browser test must also verify mic publication and remote playback:
   server-side testing alone does not validate a user's network/device.
 
-SIM follow-up: K60 Pro uses SIM slot 0 (SIM 1), Voice SIP Agent, Shizuku,
+SIM follow-up: K60 Pro uses SIM slot 1 (SIM 2, the only active SIM reported
+after the latest swap: China Broadnet/sub3), Voice SIP Agent, Shizuku,
 SIP TCP 5054 and Asterisk RTP UDP 10000–10019. These are independent of
 LiveKit media ports. First validate an audible echo in both directions;
-then deploy the LiveKit SIP bridge and connect it to the voice Agent.
+then test the LiveKit SIP bridge and voice Agent (see `ops/SIM_AI.md`).
 SIP registration alone is not proof that cellular audio works.
-Latest authorized recipient is 19221659824; confirm availability before
-resuming manual listening tests. Inbound takeover stays disabled.
+Latest dialing SIM number supplied by the user is 19221659824; the actual
+caller number comes from the physical SIM, not an overridden SIP caller ID.
+Latest recipient and gateway allowed prefix are 13660199577. Both the
+gateway default SIM and Asterisk X-VSA-SIMSLOT must use slot 1.
+Confirm availability before resuming manual listening tests. Inbound
+takeover stays disabled. This configuration change does not initiate a call.

@@ -1,0 +1,14 @@
+[Unit]
+Description=Persona LiveKit SIP bridge
+After=docker.service persona-livekit.service redis-server.service
+Requires=docker.service
+
+[Service]
+Restart=always
+RestartSec=5
+ExecStart=/usr/bin/docker run --rm --name persona-livekit-sip --network host --env-file /etc/persona-livekit/credentials.env -v /etc/persona-livekit/sip.yaml:/sip.yaml:ro mirror.ccs.tencentyun.com/livekit/sip@sha256:ccca91b38e57b0565d965ee8e7db698f0d7fd1a44a4018c4cacae14eb95bed10 --config /sip.yaml
+ExecStop=/usr/bin/docker stop -t 20 persona-livekit-sip
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

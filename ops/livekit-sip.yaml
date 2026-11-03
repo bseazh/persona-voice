@@ -1,0 +1,11 @@
+ws_url: ws://127.0.0.1:7880
+redis:
+  address: 127.0.0.1:6379
+listen_ip: 127.0.0.1
+sip_port: 5060
+rtp_port: 20000-20099
+use_external_ip: false
+nat_1_to_1_ip: 127.0.0.1
+media_nat_1_to_1_ip: 127.0.0.1
+logging:
+  level: info
