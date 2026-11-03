@@ -9,12 +9,13 @@ import {
   StartAudio,
   TrackToggle,
   useChat,
+  useConnectionState,
   useLocalParticipant,
   useTranscriptions,
   useVoiceAssistant,
 } from '@livekit/components-react';
 import { Bot, Mic, PhoneOff, Radio, Send, Sparkles } from 'lucide-react';
-import { DisconnectReason, MediaDeviceFailure, Room, RoomEvent, Track } from 'livekit-client';
+import { ConnectionState, DisconnectReason, MediaDeviceFailure, Room, RoomEvent, Track } from 'livekit-client';
 
 type ConnectionDetails = {
   serverUrl: string;
@@ -147,7 +148,9 @@ function MicrophoneTest({ onReady, onDevice }: { onReady: (ready: boolean) => vo
   );
 }
 
-function ConversationRoom({ mediaError, accessCode, deviceId }: { mediaError: string; accessCode: string; deviceId: string }) {
+function ConversationRoom({ mediaError, accessCode, deviceId, initializing }: { mediaError: string; accessCode: string; deviceId: string; initializing: boolean }) {
+  const connectionState = useConnectionState();
+  const connectionReady = connectionState === ConnectionState.Connected && !initializing;
   const { state, audioTrack } = useVoiceAssistant();
   const { isMicrophoneEnabled, lastMicrophoneError, localParticipant } = useLocalParticipant();
   const { chatMessages, send, isSending } = useChat();
@@ -195,7 +198,7 @@ function ConversationRoom({ mediaError, accessCode, deviceId }: { mediaError: st
       if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
       return;
     }
-    if (transcribing) return;
+    if (transcribing || !connectionReady) return;
     setTextError('');
     setTranscribing(true);
     try {
@@ -263,7 +266,7 @@ function ConversationRoom({ mediaError, accessCode, deviceId }: { mediaError: st
   async function submitText(event: FormEvent) {
     event.preventDefault();
     const message = textInput.trim();
-    if (!message || isSending) return;
+    if (!message || isSending || !connectionReady) return;
     setTextError('');
     try {
       await send(message);
@@ -284,22 +287,27 @@ function ConversationRoom({ mediaError, accessCode, deviceId }: { mediaError: st
       </div>
 
       <div className="conversation" ref={scrollRef}>
+        <p role="status">{connectionState === ConnectionState.Connected
+          ? initializing ? '房间已连接，正在启动麦克风…' : '实时音频连接已建立'
+          : connectionState === ConnectionState.Connecting ? '正在连接语音服务器，请稍候…'
+            : connectionState === ConnectionState.Disconnected ? '语音连接已断开'
+              : '网络中断，正在重新连接；麦克风操作暂不可用…'}</p>
         <div className="input-modes" role="group" aria-label="对话模式">
-          <button type="button" aria-pressed={inputMode === 'realtime'} disabled={dictating || transcribing} onClick={async () => {
+          <button type="button" aria-pressed={inputMode === 'realtime'} disabled={!connectionReady || dictating || transcribing} onClick={async () => {
             try { await localParticipant.setMicrophoneEnabled(true); setInputMode('realtime'); setTextError(''); }
             catch { setTextError('无法开启实时麦克风，请检查设备连接。'); }
           }}>实时对话</button>
-          <button type="button" aria-pressed={inputMode === 'recording'} disabled={dictating || transcribing} onClick={async () => {
+          <button type="button" aria-pressed={inputMode === 'recording'} disabled={!connectionReady || dictating || transcribing} onClick={async () => {
             try { await localParticipant.setMicrophoneEnabled(false); setInputMode('recording'); }
             catch { setTextError('无法切换录音模式，请重试。'); }
           }}>录音转文字（备用）</button>
         </div>
         <p className="privacy">{inputMode === 'realtime' ? '直接说话即可，停顿后自动回复；助手说话时也可以开口打断。' : '点击输入框旁的麦克风录音，停止后确认文字再发送。'}</p>
         <div className={`microphone-status ${isMicrophoneEnabled ? 'microphone-ready' : 'microphone-blocked'}`} role="status">
-          {isMicrophoneEnabled
+          {!connectionReady ? '请等待实时连接和麦克风初始化完成。' : isMicrophoneEnabled
             ? '实时通话麦克风已开启'
             : mediaError || lastMicrophoneError
-              ? '麦克风不可用：请在浏览器地址栏的网站权限中允许麦克风，然后重新进入。'
+              ? mediaError || '麦克风启动失败，请检查设备和浏览器权限。'
               : '实时通话已静音；可使用输入框旁的录音按钮，或开启下方通话麦克风。'}
         </div>
         <div className="visualizer-wrap">
@@ -345,13 +353,13 @@ function ConversationRoom({ mediaError, accessCode, deviceId }: { mediaError: st
             className={`dictation-button ${dictating ? 'dictation-active' : ''}`}
             type="button"
             onClick={toggleDictation}
-            disabled={transcribing}
+            disabled={!connectionReady || transcribing}
             aria-label={dictating ? '停止语音输入' : '使用语音输入文字'}
             title={dictating ? '停止录音并识别' : '录音转文字'}
           >
             <Mic size={17} />
           </button>
-          <button type="submit" disabled={dictating || transcribing || isSending || !textInput.trim()} aria-label="发送文字消息">
+          <button type="submit" disabled={!connectionReady || dictating || transcribing || isSending || !textInput.trim()} aria-label="发送文字消息">
             <Send size={17} />{isSending ? '发送中' : '发送'}
           </button>
         </div>
@@ -368,7 +376,7 @@ function ConversationRoom({ mediaError, accessCode, deviceId }: { mediaError: st
       </form>
 
       <div className="controls">
-        <TrackToggle className="control-button" source={Track.Source.Microphone} showIcon disabled={dictating || transcribing} onChange={(enabled) => { if (enabled) setInputMode('realtime'); }}>
+        <TrackToggle className="control-button" source={Track.Source.Microphone} showIcon disabled={!connectionReady || dictating || transcribing} onDeviceError={() => setTextError('麦克风未能发布，连接可能已中断。请等待重连，或返回首页重新进入。')} onChange={(enabled) => { if (enabled) setInputMode('realtime'); }}>
           <Mic size={19} />
         </TrackToggle>
         <DisconnectButton className="control-button disconnect">
@@ -376,6 +384,23 @@ function ConversationRoom({ mediaError, accessCode, deviceId }: { mediaError: st
         </DisconnectButton>
       </div>
       <StartAudio className="primary-button" label="点击开启助手声音" />
+      <button type="button" className="mic-test-button" onClick={async () => {
+        const context = new AudioContext();
+        try {
+          await context.resume();
+          const tone = context.createOscillator();
+          const gain = context.createGain();
+          gain.gain.value = 0.08;
+          tone.connect(gain).connect(context.destination);
+          tone.start();
+          tone.stop(context.currentTime + 0.4);
+          tone.onended = () => { void context.close(); };
+          setTextError('已播放一声测试音；如果听不到，请检查系统输出设备、耳机音量及标签页是否静音。');
+        } catch {
+          void context.close();
+          setTextError('浏览器未能播放测试音，请检查声音权限和系统输出设备。');
+        }
+      }}>测试扬声器 / 耳机</button>
       <RoomAudioRenderer />
     </section>
   );
@@ -387,12 +412,20 @@ function VoiceSession({ connection, accessCode, deviceId, onLeave }: {
 }) {
   const [room, setRoom] = useState<Room>();
   const [mediaError, setMediaError] = useState('');
+  const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
     const current = new Room();
     let active = true;
     let connected = false;
+    setInitializing(true);
     setRoom(current);
+    const deadline = setTimeout(() => {
+      if (!active || connected) return;
+      active = false;
+      onLeave('连接语音服务器超时。当前网络可能无法访问 LiveKit，请切换网络后重试。');
+      void current.disconnect();
+    }, 25_000);
     const disconnected = (reason?: DisconnectReason) => {
       // A failed join emits Disconnected before connect() rejects. Let the
       // rejection report its original error before unmounting the room.
@@ -405,6 +438,7 @@ function VoiceSession({ connection, accessCode, deviceId, onLeave }: {
       try {
         await current.connect(connection.serverUrl, connection.participantToken);
       } catch (reason) {
+        clearTimeout(deadline);
         if (!active) return;
         console.warn('voice_connection_failed', reason);
         onLeave('无法建立实时语音连接，请检查网络后重试。' +
@@ -412,6 +446,7 @@ function VoiceSession({ connection, accessCode, deviceId, onLeave }: {
         return;
       }
       if (!active) return;
+      clearTimeout(deadline);
       connected = true;
       try {
         await current.localParticipant.setMicrophoneEnabled(true, {
@@ -424,10 +459,13 @@ function VoiceSession({ connection, accessCode, deviceId, onLeave }: {
         setMediaError(failure === MediaDeviceFailure.PermissionDenied
           ? '浏览器拒绝了麦克风权限。请在网站权限中允许麦克风后重试。'
           : '麦克风启动失败，请检查所选设备和系统权限，也可以先发送文字。');
+      } finally {
+        if (active) setInitializing(false);
       }
     })();
     return () => {
       active = false;
+      clearTimeout(deadline);
       current.off(RoomEvent.Disconnected, disconnected);
       void current.disconnect();
     };
@@ -435,7 +473,7 @@ function VoiceSession({ connection, accessCode, deviceId, onLeave }: {
 
   if (!room) return <p role="status">正在建立实时连接…</p>;
   return <RoomContext.Provider value={room}>
-    <ConversationRoom mediaError={mediaError} accessCode={accessCode} deviceId={deviceId} />
+    <ConversationRoom mediaError={mediaError} accessCode={accessCode} deviceId={deviceId} initializing={initializing} />
     <button type="button" className="mic-test-button" onClick={() => onLeave('')}>返回首页</button>
   </RoomContext.Provider>;
 }
