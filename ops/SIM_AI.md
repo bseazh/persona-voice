@@ -73,6 +73,7 @@ replace listening on the receiving phone.
   direction, peaks 28,123 (phone) and 26,956 (Agent). Asterisk reported zero
   packet loss on both legs during the sample. These are transport/audio
   observations, not a guarantee of subjective latency or interruption quality.
+- User subsequently confirmed that the current AI phone experience works well.
 - The model answered a time-sensitive product question using stale knowledge.
   The prompt now explicitly discloses the absence of live search; current facts
   still require a future search integration, and prompt text alone cannot
