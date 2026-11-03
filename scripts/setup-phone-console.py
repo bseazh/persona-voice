@@ -19,6 +19,8 @@ def main():
             out.write('PHONE_ALLOWED_NUMBERS=15820242347\nPHONE_CONSOLE_PASSWORD=' + secrets.token_urlsafe(32) + '\n')
     destination = Path('/opt/persona-phone-console')
     destination.mkdir(exist_ok=True)
+    run('install', '-m', '0644', str(ROOT / 'ops/persona-phone-transcripts.conf'), '/etc/tmpfiles.d/persona-phone-transcripts.conf')
+    run('systemd-tmpfiles', '--create', '/etc/tmpfiles.d/persona-phone-transcripts.conf')
     for name in ('server.py', 'index.html', 'app.js', 'style.css'):
         run('install', '-m', '0644', str(ROOT / 'services/phone-console' / name), str(destination / name))
     run('install', '-m', '0644', str(ROOT / 'ops/persona-phone-console.service'), '/etc/systemd/system/persona-phone-console.service')

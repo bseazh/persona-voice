@@ -39,4 +39,32 @@ async function action(path, data) {
 $('consent').addEventListener('change', buttons);
 $('dial').addEventListener('click', () => action('/api/dial', { number: $('number').value }));
 $('hangup').addEventListener('click', () => action('/api/hangup', {}));
-refresh(); setInterval(refresh, 3000);
+let transcriptVersion = '';
+async function refreshTranscript() {
+  try {
+    const response = await fetch('/api/transcript', { cache: 'no-store' });
+    if (!response.ok) throw new Error();
+    const data = await response.json();
+    const version = JSON.stringify(data);
+    if (version === transcriptVersion) return;
+    transcriptVersion = version;
+    $('transcript-state').textContent = !data.room ? '等待下一通 AI 电话' : data.active ? '正在对话 · 按句更新' : '通话已结束 · 最近一通记录';
+    const list = $('messages');
+    const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+    list.replaceChildren(...data.messages.map((message) => {
+      const bubble = document.createElement('article');
+      bubble.className = message.role === 'user' ? 'bubble caller' : 'bubble assistant';
+      const label = document.createElement('small');
+      label.textContent = (message.role === 'user' ? '接听人' : 'AI 小禾') + ' · ' + new Date(message.at * 1000).toLocaleTimeString() + (message.interrupted ? ' · 已打断' : '');
+      const text = document.createElement('p');
+      text.textContent = message.text;
+      bubble.append(label, text);
+      return bubble;
+    }));
+    if (nearBottom) list.scrollTop = list.scrollHeight;
+  } catch {
+    $('transcript-state').textContent = '对话内容暂时无法读取';
+  }
+}
+refresh(); refreshTranscript();
+setInterval(refresh, 3000); setInterval(refreshTranscript, 1500);

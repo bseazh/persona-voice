@@ -18,6 +18,20 @@ ALLOWED = tuple(n for n in os.environ.get('PHONE_ALLOWED_NUMBERS', '').split(','
 CHANNEL = re.compile(r'^Local/[0-9]{11}@console-outbound-[0-9a-f]+;[12]$')
 
 
+def transcript():
+    records = []
+    for path in Path('/run/persona-phone-transcripts').glob('sim-ai-*.json'):
+        try:
+            if path.stat().st_size > 2000000:
+                continue
+            data = json.loads(path.read_text())
+            if time.time() - data['updated_at'] < 1800:
+                records.append(data)
+        except (OSError, ValueError, KeyError):
+            continue
+    return max(records, key=lambda record: record['started_at']) if records else {'messages': [], 'active': False, 'room': None}
+
+
 def cli(command):
     result = subprocess.run(['/usr/sbin/asterisk', '-rx', command], capture_output=True,
                             text=True, timeout=8, cwd='/')
@@ -104,6 +118,8 @@ class Handler(BaseHTTPRequestHandler):
                     state = snapshot()
                 state.pop('_owned')
                 self.respond(200, state)
+            elif self.path == '/api/transcript':
+                self.respond(200, transcript())
             elif self.path in ('/', '/app.js', '/style.css'):
                 name, mime = {'/': ('index.html', 'text/html; charset=utf-8'),
                               '/app.js': ('app.js', 'text/javascript; charset=utf-8'),

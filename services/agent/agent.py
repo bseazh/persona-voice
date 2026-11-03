@@ -10,6 +10,7 @@ from livekit.plugins import openai, silero
 from qwen_stt import QwenSTT
 from qwen_streaming_stt import QwenStreamingSTT
 from qwen_tts import QwenTTS
+from phone_transcript import attach_phone_transcript
 
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / ".env")
@@ -71,6 +72,7 @@ async def persona_voice(ctx: JobContext) -> None:
         ),
     )
 
+    attach_phone_transcript(session, ctx.room.name)
     await session.start(agent=PersonaAssistant(), room=ctx.room)
     await ctx.connect()
     session.generate_reply(
