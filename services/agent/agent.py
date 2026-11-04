@@ -54,7 +54,12 @@ async def persona_voice(ctx: JobContext) -> None:
     journal=VoiceJournal(ctx.room.name) if consultation else None
     speech={}
     if journal:
-        try:speech=(await journal.start())['speech']
+        try:
+            consultation_id = None
+            if ctx.room.name.startswith('sim-ai-'):
+                participant = await ctx.wait_for_participant()
+                consultation_id = participant.attributes.get('persona.consultation_id')
+            speech=(await journal.start(consultation_id))['speech']
         except Exception:
             await journal.close()
             raise

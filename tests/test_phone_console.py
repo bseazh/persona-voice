@@ -1,10 +1,12 @@
 import importlib.util
 import os
+import sys
 from pathlib import Path
 import unittest
 from unittest.mock import patch
 
 os.environ['PHONE_ALLOWED_NUMBERS'] = '15820242347'
+sys.path.insert(0,str(Path(__file__).resolve().parents[1] / 'services/phone-console'))
 spec = importlib.util.spec_from_file_location('phone_console', Path(__file__).resolve().parents[1] / 'services/phone-console/server.py')
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)

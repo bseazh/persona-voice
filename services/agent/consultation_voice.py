@@ -38,8 +38,8 @@ class VoiceJournal:
                 raise RuntimeError(f'consultation_backend_status_{r.status}')
             return await r.json()
 
-    async def start(self):
-        result = await self.request('open')
+    async def start(self, consultation_id=None):
+        result = await self.request('open', consultation_id=consultation_id)
         pending=[]
         for path in self.directory.glob('*.json'):
             try:pending.append((path.stat().st_mtime,path))
@@ -109,8 +109,10 @@ class ConsultationAssistant(Agent):
                 elif getattr(chunk,'delta',None) and chunk.delta.content:generated.append(chunk.delta.content)
                 yield chunk
         finally:
+            user_ids=[item.id for item in chat_ctx.items if getattr(item,'role',None)=='user']
             self.controller.journal.emit('generated',{'text':''.join(generated)[:8000],
-                'elapsed_ms':round((time.monotonic()-started)*1000),'template':'sleep-v1'})
+                'elapsed_ms':round((time.monotonic()-started)*1000),'template':'sleep-v1',
+                'source_message_id':user_ids[-1] if user_ids else None})
 
     @function_tool()
     async def finish_consultation(self, context: RunContext, farewell: str):
@@ -146,7 +148,8 @@ class VoiceController:
             # Explicit numeric whitelist: never persist provider headers or credentials.
             self.journal.emit('metrics',{'type':type(m).__name__,**{name:getattr(m,name) for name in
                 ('duration','ttfb','ttft','audio_duration','prompt_tokens','completion_tokens','total_tokens','end_of_utterance_delay','transcription_delay')
-                if isinstance(getattr(m,name,None),(int,float))}})
+                if isinstance(getattr(m,name,None),(int,float))},**{name:str(getattr(m,name))[:100] for name in
+                ('speech_id','request_id') if getattr(m,name,None)}})
 
         @self.session.on('agent_state_changed')
         def state(event):self.journal.emit('state',{'state':event.new_state})

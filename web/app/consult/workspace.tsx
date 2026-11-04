@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import VoiceRoom from "./voice-room";
+import PhoneDial from "./phone-dial";
+import Diagnostics from "./diagnostics";
 import "./workspace.css";
 type Message = {
   id: string;
@@ -16,6 +18,7 @@ type Consultation = {
   status: string;
   mode: "text" | "voice" | "phone";
   voice_state?: string;
+  phone_state?: string;
   created_at: string;
   ended_at?: string;
   reason?: string;
@@ -31,15 +34,6 @@ type Speech = {
   workspace: string;
   asr_test?: { ok: boolean; at: string };
   tts_test?: { ok: boolean; at: string };
-};
-type Line = {
-  caller: string;
-  recipient: string;
-  sim: number;
-  online: boolean;
-  busy: boolean;
-  status_available: boolean;
-  reason: string;
 };
 const fields: Record<string, string> = {
   schedule: "作息时间",
@@ -81,8 +75,7 @@ export default function Workspace() {
     }),
     [key, setKey] = useState(""),
     [audio, setAudio] = useState(""),
-    [asr, setAsr] = useState(""),
-    [line, setLine] = useState<Line | null>(null);
+    [asr, setAsr] = useState("");
   const [file, setFile] = useState<File | null>(null),
     [logs, setLogs] = useState<
       { seq: number; kind: string; payload: unknown; created_at: string }[]
@@ -215,7 +208,6 @@ export default function Workspace() {
       setPage(next);
       if (next === "sessions") await refreshList();
       if (next === "speech") setSpeech(await api("speech"));
-      if (next === "line") setLine(await api("line"));
     });
   }
   async function test(kind: string) {
@@ -472,6 +464,55 @@ export default function Workspace() {
                     ending={current.voice_state === "ending"}
                   />
                 )}
+                {current.mode === "phone" && (
+                  <section>
+                    <p>
+                      电话状态：
+                      {(
+                        {
+                          submitting: "正在提交",
+                          queued: "等待拨号",
+                          dialing: "正在呼叫",
+                          connected: "已接通",
+                          uncertain: "结果待确认",
+                          ended: "已挂断",
+                          failed: "未接通",
+                        } as Record<string, string>
+                      )[current.phone_state || ""] || "正在同步"}
+                    </p>
+                    <p>
+                      接听方无需网页操作，双方文字会自动显示；最长通话约 180
+                      秒。
+                    </p>
+                    <button
+                      className="cw-secondary"
+                      disabled={busy}
+                      onClick={() =>
+                        run(async () => {
+                          await api("phone-reconcile", { id: current.id });
+                          await load(current.id);
+                        })
+                      }
+                    >
+                      核对拨号状态
+                    </button>
+                    <button
+                      className="cw-danger"
+                      disabled={busy}
+                      onClick={() => {
+                        if (
+                          confirm("立即挂断此通电话？可能无法播放完整结束语。")
+                        )
+                          void run(async () => {
+                            await api("phone-hangup", { id: current.id });
+                            setNotice("已请求挂断当前电话");
+                          });
+                      }}
+                    >
+                      立即挂断
+                    </button>
+                  </section>
+                )}
                 <div className="cw-chat-grid">
                   <section className="cw-chat">
                     <div className="cw-messages" role="log" aria-live="polite">
@@ -721,7 +762,7 @@ export default function Workspace() {
                     </label>
                     <p className="cw-muted">
                       留空使用阿里云官方默认入口；指定北京业务空间时，Key
-                      必须与该空间匹配。此配置用于工作台测试，尚不启用手机通话。
+                      必须与该空间匹配。此配置用于下一次网页语音及电话咨询。
                     </p>
                     <button
                       disabled={busy || !key.trim()}
@@ -795,90 +836,12 @@ export default function Workspace() {
                 </div>
               </>
             )}
-            {page === "line" && (
-              <>
-                <div className="cw-kicker">PHONE LINE</div>
-                <h1>电话线路</h1>
-                <p>先保存线路偏好。本阶段不下发手机控制命令，不开放拨号。</p>
-                {line && (
-                  <div className="cw-grid">
-                    <section>
-                      <h2>当前网关</h2>
-                      <p className="cw-status">
-                        {!line.status_available
-                          ? "状态暂不可用"
-                          : line.online
-                            ? "● SIP 已注册"
-                            : "○ SIP 未注册"}
-                      </p>
-                      <p>{line.busy ? "当前有通话" : "当前无电话通道"}</p>
-                      <small>
-                        注册成功不代表 Shizuku、SIM、音频与模型均已通过检查。
-                      </small>
-                      <button
-                        className="cw-secondary"
-                        onClick={() => navigation("line")}
-                      >
-                        刷新状态
-                      </button>
-                    </section>
-                    <section>
-                      <h2>线路偏好</h2>
-                      <label>
-                        主叫号码备注
-                        <input
-                          value={line.caller}
-                          onChange={(e) =>
-                            setLine({ ...line, caller: e.target.value })
-                          }
-                        />
-                      </label>
-                      <label>
-                        测试接听号码
-                        <input
-                          value={line.recipient}
-                          onChange={(e) =>
-                            setLine({ ...line, recipient: e.target.value })
-                          }
-                        />
-                      </label>
-                      <label>
-                        计划使用 SIM
-                        <select
-                          value={line.sim}
-                          onChange={(e) =>
-                            setLine({ ...line, sim: Number(e.target.value) })
-                          }
-                        >
-                          <option value={1}>SIM 1</option>
-                          <option value={2}>SIM 2</option>
-                        </select>
-                      </label>
-                      <small>
-                        主叫号码由实体 SIM
-                        决定。此处不会更改实际卡槽或网关白名单。
-                      </small>
-                      <button
-                        disabled={busy}
-                        onClick={() =>
-                          run(async () => {
-                            const r = await api("line", {
-                              caller: line.caller,
-                              recipient: line.recipient,
-                              sim: line.sim,
-                            });
-                            setNotice(r.notice);
-                          })
-                        }
-                      >
-                        保存线路偏好
-                      </button>
-                      <button disabled>拨打电话（尚未开放）</button>
-                      <p>{line.reason}</p>
-                    </section>
-                  </div>
-                )}
-              </>
+            {page === "line" && <PhoneDial onStarted={load} />}
+            {current && ["chat", "result"].includes(page) && (
+              <Diagnostics
+                id={current.id}
+                closed={current.status === "closed"}
+              />
             )}
           </main>
           <footer>

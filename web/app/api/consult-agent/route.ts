@@ -36,10 +36,19 @@ export async function POST(req: NextRequest) {
       throw Error("room");
     if (b.action === "open") {
       if (b.room.startsWith("sim-ai-")) {
-        await db.query(
-          "INSERT INTO consult_sessions(id,title,template,mode,room_name,voice_state) VALUES($1,$2,$3,'phone',$4,'connecting') ON CONFLICT(room_name) WHERE room_name IS NOT NULL DO NOTHING",
-          [randomUUID(), "电话睡眠调研", JSON.stringify(template), b.room],
-        );
+        if (b.consultation_id) {
+          if (!/^[0-9a-f-]{36}$/.test(b.consultation_id))
+            throw Error("call_id");
+          const linked = await db.query(
+            "UPDATE consult_sessions SET room_name=$1 WHERE id=$2 AND mode='phone' AND status='active' AND (room_name IS NULL OR room_name=$1) RETURNING id",
+            [b.room, b.consultation_id],
+          );
+          if (!linked.rowCount) throw Error("call_unavailable");
+        } else
+          await db.query(
+            "INSERT INTO consult_sessions(id,title,template,mode,room_name,voice_state) VALUES($1,$2,$3,'phone',$4,'connecting') ON CONFLICT(room_name) WHERE room_name IS NOT NULL DO NOTHING",
+            [randomUUID(), "电话睡眠调研", JSON.stringify(template), b.room],
+          );
       }
       const found = await db.query(
         "UPDATE consult_sessions SET voice_state='active' WHERE room_name=$1 AND status='active' AND mode IN ('voice','phone') RETURNING id,title,mode",

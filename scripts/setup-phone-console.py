@@ -39,11 +39,24 @@ def main():
         else:
             lines.append('PHONE_ALLOWED_NUMBERS=' + args.allow_number)
         config.write_text('\n'.join(lines) + '\n')
+    values = dict(line.split('=', 1) for line in config.read_text().splitlines() if '=' in line)
+    values.setdefault('PHONE_AMI_PASSWORD', secrets.token_hex(32))
+    environment = dict(line.split('=', 1) for line in (ROOT / '.env').read_text().splitlines() if '=' in line and not line.startswith('#'))
+    values['CONSULTATION_AGENT_SECRET'] = environment['CONSULTATION_AGENT_SECRET']
+    config.write_text('\n'.join(key + '=' + value for key, value in values.items()) + '\n')
+    config.chmod(0o600)
+    settings = run('asterisk', '-rx', 'manager show settings')
+    assert '127.0.0.1:5038' in settings, 'AMI must already be enabled on loopback only'
+    manager = Path('/etc/asterisk/manager.d/persona-console.conf')
+    manager.write_text('[persona-console]\nsecret=' + values['PHONE_AMI_PASSWORD'] + '\ndeny=0.0.0.0/0.0.0.0\npermit=127.0.0.1/255.255.255.255\nread=none\nwrite=originate\n')
+    run('chown', 'asterisk:asterisk', str(manager))
+    manager.chmod(0o640)
+    run('asterisk', '-rx', 'manager reload')
     destination = Path('/opt/persona-phone-console')
     destination.mkdir(exist_ok=True)
     run('install', '-m', '0644', str(ROOT / 'ops/persona-phone-transcripts.conf'), '/etc/tmpfiles.d/persona-phone-transcripts.conf')
     run('systemd-tmpfiles', '--create', '/etc/tmpfiles.d/persona-phone-transcripts.conf')
-    for name in ('server.py', 'index.html', 'app.js', 'style.css'):
+    for name in ('server.py', 'managed_calls.py', 'index.html', 'app.js', 'style.css'):
         run('install', '-m', '0644', str(ROOT / 'services/phone-console' / name), str(destination / name))
     run('install', '-m', '0644', str(ROOT / 'ops/persona-phone-console.service'), '/etc/systemd/system/persona-phone-console.service')
     run('install', '-o', 'asterisk', '-g', 'asterisk', '-m', '0640', str(ROOT / 'ops/asterisk-livekit-extensions.conf'), '/etc/asterisk/persona-livekit-extensions.conf')

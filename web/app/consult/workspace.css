@@ -398,3 +398,38 @@
     height: 420px;
   }
 }
+.cw-check {
+  padding: 12px 0;
+  border-bottom: 1px solid #dce3df;
+}
+.cw-check p {
+  margin: 5px 0;
+  font-size: 14px;
+}
+.cw-diagnostics {
+  margin-top: 24px;
+}
+.cw-diagnostic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+.cw-diagnostic-grid > div {
+  background: #f3f6f4;
+  border-radius: 12px;
+  padding: 14px;
+  overflow-wrap: anywhere;
+}
+.cw-diagnostic-grid p {
+  font-size: 13px;
+}
+.cw-audit {
+  max-height: 520px;
+  overflow: auto;
+  margin-top: 16px;
+}
+.cw-audit details {
+  padding: 10px;
+  border-bottom: 1px solid #dce3df;
+}

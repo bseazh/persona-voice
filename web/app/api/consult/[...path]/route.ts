@@ -25,6 +25,7 @@ import {
   limit,
 } from "@/lib/consultation";
 import { toWav } from "@/lib/qwen-asr";
+import { phoneReadiness, phoneRequest } from "@/lib/phone";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 let initialized: Promise<void> | undefined;
@@ -66,47 +67,7 @@ export async function GET(req: NextRequest) {
         ).rows,
       );
     if (path === "speech") return json(await speechSettings());
-    if (path === "line") {
-      let online = false,
-        busy = false,
-        available = false;
-      try {
-        if (process.env.PHONE_CONSOLE_PASSWORD) {
-          const r = await fetch("http://127.0.0.1:5055/api/status", {
-            headers: {
-              Authorization:
-                "Basic " +
-                Buffer.from(
-                  "operator:" + process.env.PHONE_CONSOLE_PASSWORD,
-                ).toString("base64"),
-            },
-            signal: AbortSignal.timeout(3000),
-            cache: "no-store",
-          });
-          if (r.ok) {
-            const v = await r.json();
-            online = !!v.gateway_online;
-            busy = !!v.busy;
-            available = true;
-          }
-        }
-      } catch {}
-      const saved = (
-        await db.query("SELECT value FROM consult_settings WHERE id='line'")
-      ).rows[0]?.value || {
-        caller: "19221659824",
-        recipient: "15820242347",
-        sim: 2,
-      };
-      return json({
-        ...saved,
-        online,
-        busy,
-        status_available: available,
-        dial_enabled: false,
-        reason: "本阶段仅开放文字咨询；电话接入待语音配置及线路验收完成。",
-      });
-    }
+    if (path === "line") return json(await phoneReadiness());
     const id = req.nextUrl.searchParams.get("id") || "";
     if (path === "session") return json(await session(id));
     if (path === "events") {
@@ -315,6 +276,88 @@ export async function POST(req: NextRequest) {
     if (Number(req.headers.get("content-length")) > 12000)
       throw new UserError("请求过大");
     const b = await req.json();
+    if (path === "phone-dial") {
+      if (
+        !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(
+          b.requestId || "",
+        ) ||
+        !/^1[0-9]{10}$/.test(b.number || "") ||
+        b.template !== "sleep-v1" ||
+        b.consent !== true ||
+        b.sim !== 2
+      )
+        throw new UserError("请确认睡眠调研模板、接听号码、SIM 2 和拨号授权");
+      const previous = (
+        await db.query(
+          "SELECT id,phone_number FROM consult_sessions WHERE id=$1 AND mode='phone'",
+          [b.requestId],
+        )
+      ).rows[0];
+      if (previous) {
+        if (previous.phone_number !== b.number)
+          throw new UserError("请求编号与号码不一致", 409);
+        return json({ id: previous.id });
+      }
+      await limit("phone-dial", 10, 3600);
+      const readiness = await phoneReadiness();
+      if (!readiness.dial_enabled) throw new UserError(readiness.reason, 409);
+      if (!readiness.numbers.includes(b.number))
+        throw new UserError("接听号码不在服务器允许名单中", 403);
+      try {
+        await db.query(
+          "INSERT INTO consult_sessions(id,title,template,mode,voice_state,phone_number,phone_state) VALUES($1,$2,$3,'phone','dialing',$4,'submitting')",
+          [
+            b.requestId,
+            typeof b.title === "string"
+              ? b.title.trim().slice(0, 80) || "电话睡眠调研"
+              : "电话睡眠调研",
+            JSON.stringify(template),
+            b.number,
+          ],
+        );
+      } catch (e) {
+        if ((e as { code?: string }).code === "23505") {
+          const same = (
+            await db.query(
+              "SELECT id,phone_number FROM consult_sessions WHERE id=$1",
+              [b.requestId],
+            )
+          ).rows[0];
+          if (same && same.phone_number === b.number)
+            return json({ id: same.id });
+          throw new UserError("已有未结束的电话咨询，请先查看该咨询", 409);
+        }
+        throw e;
+      }
+      await event(b.requestId, "phone.requested", {
+        template: b.template,
+        sim: 2,
+        recipient_suffix: b.number.slice(-4),
+        max_seconds: 180,
+      });
+      try {
+        await phoneRequest("dial", {
+          number: b.number,
+          request_id: b.requestId,
+        });
+      } catch (e) {
+        await event(b.requestId, "phone.submit_error", {
+          uncertain: !(e instanceof UserError && e.status < 500),
+        });
+        if (e instanceof UserError && e.status < 500) {
+          await db.query(
+            "UPDATE consult_sessions SET status='closed',voice_state='ended',ended_at=now(),reason='phone_rejected',phone_state='failed' WHERE id=$1",
+            [b.requestId],
+          );
+        } else {
+          await db.query(
+            "UPDATE consult_sessions SET phone_state='uncertain' WHERE id=$1",
+            [b.requestId],
+          );
+        }
+      }
+      return json({ id: b.requestId }, 201);
+    }
     if (path === "speech") {
       if (
         typeof b.key !== "string" ||
@@ -397,6 +440,35 @@ export async function POST(req: NextRequest) {
     }
     const id = typeof b.id === "string" ? b.id : "";
     await session(id);
+    if (path === "phone-hangup") {
+      const c = await session(id);
+      if (c.mode !== "phone") throw new UserError("不是电话咨询");
+      const result = await phoneRequest("hangup", { request_id: id });
+      await event(id, "phone.hangup_requested");
+      return json(result);
+    }
+    if (path === "phone-reconcile") {
+      const c = await session(id);
+      if (c.mode !== "phone") throw new UserError("不是电话咨询");
+      try {
+        return json(await phoneRequest("call?id=" + id));
+      } catch (e) {
+        if (
+          e instanceof UserError &&
+          e.status === 404 &&
+          Date.now() - new Date(c.created_at).getTime() > 60000 &&
+          ["submitting", "uncertain"].includes(c.phone_state)
+        ) {
+          await db.query(
+            "UPDATE consult_sessions SET status='closed',voice_state='ended',phone_state='failed',ended_at=now(),reason='phone_not_submitted' WHERE id=$1 AND status='active'",
+            [id],
+          );
+          await event(id, "phone.reconciled_absent");
+          return json({ state: "failed" });
+        }
+        throw e;
+      }
+    }
     if (path === "voice-token") {
       const c = await session(id);
       if (
@@ -441,6 +513,11 @@ export async function POST(req: NextRequest) {
       const c = await session(id);
       if (c.mode === "text" || c.status !== "active")
         throw new UserError("此语音会话已结束", 409);
+      if (c.mode === "phone" && !c.room_name) {
+        await phoneRequest("hangup", { request_id: id });
+        await event(id, "phone.hangup_requested");
+        return json({ ok: true });
+      }
       await db.query(
         "UPDATE consult_sessions SET voice_state='ending' WHERE id=$1",
         [id],

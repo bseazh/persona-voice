@@ -19,6 +19,9 @@ async def main():
             trunk = await client.sip.create_inbound_trunk(api.CreateSIPInboundTrunkRequest(
                 trunk=api.SIPInboundTrunkInfo(name='persona-asterisk-local', numbers=['9000'], allowed_addresses=['127.0.0.1/32']),
             ))
+        if trunk.headers_to_attributes.get('X-Consultation-ID') != 'persona.consultation_id':
+            trunk.headers_to_attributes['X-Consultation-ID'] = 'persona.consultation_id'
+            trunk = await client.sip.update_inbound_trunk(trunk.sip_trunk_id, trunk)
         rules = await client.sip.list_dispatch_rule(api.ListSIPDispatchRuleRequest())
         matches = [r for r in rules.items if r.name == 'persona-sim-ai']
         if matches:

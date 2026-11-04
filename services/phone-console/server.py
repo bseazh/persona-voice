@@ -10,6 +10,8 @@ import re
 import subprocess
 import threading
 import time
+import managed_calls
+from urllib.parse import urlsplit, parse_qs
 
 PORT = 5055
 LOCK = threading.Lock()
@@ -117,7 +119,14 @@ class Handler(BaseHTTPRequestHandler):
                 with LOCK:
                     state = snapshot()
                 state.pop('_owned')
+                state['busy'] = state['busy'] or managed_calls.active()
+                state['actual_sim'] = 2
+                state['caller'] = os.getenv('PHONE_CALLER_NUMBER', '19221659824')
                 self.respond(200, state)
+            elif self.path.startswith('/api/call?'):
+                call_id = parse_qs(urlsplit(self.path).query).get('id', [''])[0]
+                record = managed_calls.get(call_id)
+                self.respond(200 if record else 404, record or {'error': 'Not found'})
             elif self.path == '/api/transcript':
                 self.respond(200, transcript())
             elif self.path in ('/', '/app.js', '/style.css'):
@@ -150,9 +159,12 @@ class Handler(BaseHTTPRequestHandler):
                 number = body.get('number')
                 if not isinstance(number, str):
                     raise ValueError()
-                status, result = dial(number)
+                if body.get('request_id'):
+                    status, result = managed_calls.dial(number, body['request_id'], ALLOWED, snapshot)
+                else:
+                    status, result = (409, {'error': '工作台通话尚未结束'}) if managed_calls.active() else dial(number)
             elif self.path == '/api/hangup':
-                status, result = hangup()
+                status, result = managed_calls.hangup(body['request_id'], cli) if body.get('request_id') else hangup()
             else:
                 status, result = 404, {'error': 'Not found'}
             self.respond(status, result)
@@ -168,6 +180,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
+    managed_calls.start_monitor(cli)
     if len(os.environ.get('PHONE_CONSOLE_PASSWORD', '')) < 24 or not ALLOWED or any(not re.fullmatch(r'[0-9]{11}', n) for n in ALLOWED):
         raise SystemExit('Configure a strong password and explicit phone allowlist')
     logging.basicConfig(level=logging.INFO)

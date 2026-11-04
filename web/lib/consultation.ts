@@ -57,6 +57,10 @@ export async function initDB() {
   ALTER TABLE consult_sessions ADD COLUMN IF NOT EXISTS mode text NOT NULL DEFAULT 'text';
   ALTER TABLE consult_sessions ADD COLUMN IF NOT EXISTS room_name text;
   ALTER TABLE consult_sessions ADD COLUMN IF NOT EXISTS voice_state text;
+  ALTER TABLE consult_sessions ADD COLUMN IF NOT EXISTS phone_number text;
+  ALTER TABLE consult_sessions ADD COLUMN IF NOT EXISTS phone_state text;
+  ALTER TABLE consult_sessions ADD COLUMN IF NOT EXISTS phone_updated_at timestamptz;
+  CREATE UNIQUE INDEX IF NOT EXISTS consult_one_phone_active ON consult_sessions(mode) WHERE mode='phone' AND status='active';
   CREATE UNIQUE INDEX IF NOT EXISTS consult_session_room ON consult_sessions(room_name) WHERE room_name IS NOT NULL;
   ALTER TABLE consult_messages ADD COLUMN IF NOT EXISTS interrupted boolean NOT NULL DEFAULT false;
   ALTER TABLE consult_events ADD COLUMN IF NOT EXISTS event_id uuid;
