@@ -5,16 +5,19 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 
 RECEIVER = 'io.github.sparkcyf.voicesipagent/io.github.sparkcyf.voicesipagent.app.AdbControlReceiver'
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--recover', action='store_true')
+    parser.add_argument('--cold-restart', action='store_true', help='When idle, fully restart the gateway app instead of only its SIP stack')
     parser.add_argument('--serial')
     parser.add_argument('--interactive-ssh', action='store_true', help='Allow SSH to prompt for a password in a terminal')
     parser.add_argument('--server', default='ubuntu@134.175.154.244')
     args = parser.parse_args()
+    if args.cold_restart: args.recover = True
 
     def execute(command, timeout=15):
         return subprocess.run(command, capture_output=True, text=True, timeout=timeout)
@@ -54,7 +57,16 @@ def main():
         if args.recover:
             check = status()
             if 'shizuku=CONNECTED' in check:
-                print(execute(adb + ['shell', 'am', 'broadcast', '-n', RECEIVER, '--es', 'op', 'sip-restart']).stdout.strip())
+                if args.cold_restart:
+                    print('当前无蜂窝通话；完整重启 Voice SIP Agent，保留应用数据和 SIP 配置。')
+                    execute(adb + ['shell', 'am', 'force-stop', 'io.github.sparkcyf.voicesipagent'])
+                    execute(adb + ['shell', 'am', 'start', '-n', 'io.github.sparkcyf.voicesipagent/.app.MainActivity'])
+                else:
+                    print(execute(adb + ['shell', 'am', 'broadcast', '-n', RECEIVER, '--es', 'op', 'sip-restart']).stdout.strip())
+                for _ in range(10):
+                    time.sleep(1)
+                    check = status()
+                    if 'ready=true' in check and 'shizuku=CONNECTED' in check: break
             else:
                 print('Shizuku 尚未连接；请在手机确认授权，未强制修改权限。')
             result = status()
@@ -70,6 +82,8 @@ def main():
         return 1
     online = any('k60-test/' in line and re.search(r'\bAvail\b', line) for line in remote.stdout.splitlines())
     print('服务器 SIP 注册：' + ('在线' if online else '离线；恢复后可能需要等待重新注册'))
+    if ready and not online:
+        print('手机报告与服务器不一致；不要拨号。空闲时可加 --cold-restart 完整重启网关，再观察至少 6 分钟续注册。')
     print('检查不代表蜂窝音频已验证；必须通过授权通话确认实际听感。')
     return 0 if ready and online else 1
 

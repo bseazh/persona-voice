@@ -18,3 +18,4 @@ runtime/
 runtime.previous/
 .runtime-*/
 BigApple输出/
+vendor/

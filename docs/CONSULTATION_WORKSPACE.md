@@ -26,9 +26,19 @@
 - Key 经 HTTPS 提交、AES-256-GCM 加密后存 PostgreSQL，不回显。不要再把 Key 发在聊天、Git 或截图中。
 - 不需要开放新公网端口；接口通过现有 HTTPS 443、登录 Cookie 和来源校验保护。
 
-## 电话配置边界
+## 公网拨号流程
 
-「电话线路」读取现有私有控制台状态，可保存主叫号码备注、接听号码和 SIM 偏好。保存不会改手机卡槽、实体主叫号码、Asterisk 白名单或立即拨号。公网拨号按钮仍禁用；真实电话由现有私有控制台发起。`sim-ai-*` 电话房间会自动建立咨询记录，登录工作台、刷新咨询列表、打开「电话睡眠调研」，即可查看实时转录和结束后的报告。SIP 注册不代表全部音频链路正常。
+登录 →「电话线路」→ 选择睡眠调研模板 → 填写接听号码及标题 → 确认拨号授权 → 检查通过后点击拨打并确认 → 自动进入实时对话 → 结束后进入报告。当前仅开放睡眠模板 v1，模型按真实回答生成内容。受访者在开场收到 AI 身份、转录用途说明并决定是否参与。
+
+接听号码必须同时通过服务器精确白名单与手机网关允许名单。当前固定 SIM 2（逻辑槽位 1），网页不会修改卡槽或伪造主叫号码。基础检查包括私有控制台、Asterisk 联系人可达、线路空闲、Agent 进程、LiveKit API、已保存语音测试和 LLM 凭据；供应商实时权限、额度和音频质量仍以实际通话为准。
+
+浏览器只能调用登录保护、来源校验及限流后的工作台接口。工作台访问本机 `127.0.0.1:5055` 私有控制台，控制台通过本机 AMI `127.0.0.1:5038` 发起呼叫；两者不经 Caddy 暴露。AMI 账号只拥有 originate 权限。最长电话约 180 秒。
+
+一次点击生成一个 UUID，工作台单通活动电话约束与私有控制台 SQLite 去重共同防止重复拨号。网络超时不会自动换 ID 重拨，页面可重试同一请求或核对状态。UUID 经 Asterisk 继承变量、`X-Consultation-ID` SIP 头、LiveKit 参与者属性传给 Agent，转录和报告关联到原始咨询，而不是猜测最近一通电话。
+
+普通结束会等 AI 结束语播放；「立即挂断」只操作该会话所属的电话通道，不保证结束语完整播放。关闭浏览器不会自动挂断手机电话。无人接听/取消等终止事件由私有控制台持续写回并归档；后台服务暂不可用时保留事件重试。拨号结果不明确时，先在当前会话核对状态，不要删除记录再重新拨号。
+
+电话页和语音页下方的「运行诊断 · 管理员」显示当前阶段、最近异常、识别/模型/合成/停顿耗时及完整事件时间线。`voice.generated` 是模型生成文本，不代表全部播放；`voice.message` 保存最终识别或播放同步文字，带打断标记。事件可能包含健康信息，继续使用管理员登录限制访问。
 
 ## 持久化和审计
 
@@ -49,6 +59,26 @@ PostgreSQL 保存会话、原始文字、模板版本、事实来源、报告、
 服务器首次准备 PostgreSQL 后，运行 `python3 scripts/setup-consultation.py`。脚本生成独立数据库角色、管理员密码和加密密钥，写入服务器 `.env`，不会覆盖 DeepSeek 或旧语音凭据。再次运行保留已有配置。管理员登录说明写入被 Git 忽略的 `BigApple输出/consultation-access.txt`，权限 600。
 
 环境变量：`DEEPSEEK_API_KEY`、`CONSULTATION_DATABASE_URL`、`CONSULTATION_ADMIN_PASSWORD`、`CONSULTATION_ENCRYPTION_KEY`、`CONSULTATION_AGENT_SECRET`、`CONSULTATION_PUBLIC_ORIGIN`、`PERSONA_PROJECT_ROOT`；可选私有状态查询 `PHONE_CONSOLE_PASSWORD`。均不得使用 `NEXT_PUBLIC_` 前缀。升级旧部署时先重新运行配置脚本生成 Agent 服务凭据，再重启 Web 与 Agent。
+
+服务端 LiveKit 房间管理默认走 `http://127.0.0.1:7880`，可用私有变量 `LIVEKIT_API_URL` 覆盖；浏览器仍使用 `LIVEKIT_URL` 的 WSS 地址。Node SDK 不保留 URL 路径前缀，不能用 `/livekit` 信令路径调用管理 API。
+
+首次升级公网拨号时，在空闲状态执行 `sudo python3 scripts/setup-phone-console.py` 和 `.venv-agent/bin/python scripts/configure-sip-route.py`，安装 AMI 本机账号、持久化控制台及 SIP 头映射。控制台状态位于 `/var/lib/persona-phone-console/calls.sqlite3`，服务重启不丢失去重记录或未交付事件。该文件与 PostgreSQL 都应备份，不能在故障时直接清空以“解除忙线”。后续修改私有控制台代码还需要重新执行安装脚本；普通 Web/Agent 仍由 GitHub Actions 部署。
+
+### 手机恢复与稳定性边界
+
+先检查 Shizuku 已连接、网关开启、SIM 2 可用、手机联网、自启动开启、省电策略无限制、后台联网允许。以服务器 Asterisk 的 `Avail` 为准，不能只看手机缓存的“registered”。
+
+本次复现：原网关进程在后台无法及时响应 OPTIONS，随后联系人过期；应用仍显示注册成功。手机省电与后台联网原本已放开，自启动此前关闭，本次已开启。完整冷启动应用后，后台探测恢复。尚不能仅凭这些现象断定是某个系统权限或 SDK 内部缺陷。
+
+空闲时接 USB 后可执行 `python3 scripts/gateway-check.py --cold-restart --interactive-ssh`。脚本先检查没有蜂窝通话，再保留配置完整重启网关，必要时尝试启动已有 Shizuku，最后核对服务器注册。正常使用不需要一直连 USB；设备重启后的 Shizuku 启动/解锁仍可能需要手机操作，不承诺安卓完全无人值守。
+
+验收应分开记录：后台至少 6 分钟并跨过注册续期、断网后恢复、拔 USB 后真实电话、重启后恢复。没有执行的项不得写成通过。公网浏览器检查脚本 `scripts/validate-phone-workflow.cjs` 默认不拨号；显式 `--dial` 才会呼叫既定测试号码，并验证同一请求重试、会话关联和归档。
+
+2026-11-04 新版验证记录：冷启动应用、开启自启动后，退到桌面 6 分钟持续 `Avail` 并跨过注册续期；公网登录、拨打前检查、错误 SIM 拒绝、桌面/手机布局检查通过。真实网页拨号会话 `ac8e48a3-33de-4a93-8cf4-84ccc741c724` 同一请求重复提交返回原会话，实际只产生一通电话；接听端未接通，响铃约 35 秒后自动取消，记录 `phone_not_connected`，空转录与报告正常归档。这次不能作为真实双向音频或拔线验收。
+
+`scripts/validate-phone-bridge.py` 是服务器内部真实 SIP/LiveKit 联调，使用独立标记的技术验收会话，不拨打 SIM 手机。它验证自定义 SIP 头、Agent 会话关联、转录和归档；不能替代真实接听测试。
+
+内部桥接会话 `118a1124-3cba-472a-b2f7-b7da70be4c68` 已准确关联至 `sim-ai-_1000_WmxeYJLZWiur`，保存 3 条消息，结束及报告成功。拔 USB、断网重连、整机重启恢复仍待独立验收，不能把短时后台测试推广为长期无人值守保证。
 
 现有 GitHub Actions 在 main 推送后构建并部署。数据库位于 PostgreSQL 数据目录，部署同步不会删除它；`.env`、`BigApple输出/` 不参与发布覆盖。应把 PostgreSQL 备份和 `.env` 中加密密钥分别保存到受控位置。丢失加密密钥后需重新填写语音 Key，单独恢复数据库无法解密原 Key。此版本尚未配置自动异地备份。
 
