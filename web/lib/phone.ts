@@ -67,9 +67,10 @@ export async function phoneReadiness() {
       )
         return;
       const rooms = new RoomServiceClient(
-        process.env.LIVEKIT_URL.replace(/^ws/, "http"),
+        process.env.LIVEKIT_API_URL || "http://127.0.0.1:7880",
         process.env.LIVEKIT_API_KEY,
         process.env.LIVEKIT_API_SECRET,
+        { requestTimeout: 3, failover: false },
       );
       await Promise.race([
         rooms.listRooms(),

@@ -530,7 +530,7 @@ export async function POST(req: NextRequest) {
       if (c.mode === "text") throw new UserError("不是语音会话");
       if (c.room_name) {
         const rooms = new RoomServiceClient(
-          process.env.LIVEKIT_URL!.replace(/^ws/, "http"),
+          process.env.LIVEKIT_API_URL || "http://127.0.0.1:7880",
           process.env.LIVEKIT_API_KEY,
           process.env.LIVEKIT_API_SECRET,
         );

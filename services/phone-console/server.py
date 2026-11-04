@@ -14,7 +14,8 @@ import managed_calls
 from urllib.parse import urlsplit, parse_qs
 
 PORT = 5055
-LOCK = threading.Lock()
+LOCK = threading.RLock()
+managed_calls.LOCK = LOCK
 PENDING_UNTIL = 0.0
 ALLOWED = tuple(n for n in os.environ.get('PHONE_ALLOWED_NUMBERS', '').split(',') if n)
 CHANNEL = re.compile(r'^Local/[0-9]{11}@console-outbound-[0-9a-f]+;[12]$')
