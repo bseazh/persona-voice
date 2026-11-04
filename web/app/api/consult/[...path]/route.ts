@@ -241,7 +241,7 @@ export async function POST(req: NextRequest) {
           throw new UserError("请选择不超过 5MB 的短语音文件");
         const wav = await toWav(Buffer.from(await file.arrayBuffer()));
         const upstream = await fetch(
-          `https://${config.workspace}.cn-beijing.maas.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation`,
+          (config.workspace ? `https://${config.workspace}.cn-beijing.maas.aliyuncs.com/api/v1` : 'https://dashscope.aliyuncs.com/api/v1') + '/services/aigc/multimodal-generation/generation',
           {
             method: "POST",
             headers: {
@@ -279,7 +279,7 @@ export async function POST(req: NextRequest) {
           );
         const body = await upstream.json();
         const text =
-          body.text ?? body.output?.text ?? body.output?.sentence?.text;
+          body.text ?? body.output?.text ?? body.output?.sentence?.text ?? body.output?.output?.text;
         if (typeof text !== "string" || !text.trim())
           throw new UserError("未识别到有效文字，请检查音频人声", 422);
         response = json({
@@ -314,9 +314,9 @@ export async function POST(req: NextRequest) {
         throw new UserError("请输入有效 Key");
       if (
         typeof b.workspace !== "string" ||
-        !/^llm-[a-zA-Z0-9-]{5,80}$/.test(b.workspace)
+        (b.workspace !== '' && !/^llm-[a-zA-Z0-9-]{5,80}$/.test(b.workspace))
       )
-        throw new UserError("请输入北京业务空间 ID（llm- 开头）");
+        throw new UserError("请输入北京业务空间 ID（llm- 开头），或留空使用官方默认入口");
       const value = {
         encrypted: seal(b.key),
         workspace: b.workspace,

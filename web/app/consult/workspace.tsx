@@ -645,7 +645,7 @@ export default function Workspace() {
                   <section>
                     <h2>填写与保存</h2>
                     <label>
-                      北京业务空间 ID
+                      北京业务空间 ID（默认入口留空）
                       <input
                         value={speech.workspace}
                         onChange={(e) =>
@@ -668,8 +668,7 @@ export default function Workspace() {
                       />
                     </label>
                     <p className="cw-muted">
-                      仅支持北京地域。Key
-                      与业务空间必须匹配。此配置用于工作台测试，尚不启用手机通话。
+                      留空使用阿里云官方默认入口；指定北京业务空间时，Key 必须与该空间匹配。此配置用于工作台测试，尚不启用手机通话。
                     </p>
                     <button
                       disabled={busy || !key.trim()}

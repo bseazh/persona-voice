@@ -16,7 +16,7 @@
 
 登录 → **语音配置 · 填写 Key** → 填写北京业务空间 ID 和共用 API Key → 保存共用 Key。
 
-- 默认业务空间：`llm-w115702gcv6zwvwy`，需与新 Key 匹配。
+- 业务空间留空：使用阿里云官方默认入口 `https://dashscope.aliyuncs.com/api/v1`。如果明确使用北京独立业务空间，填写其 `llm-...` ID，必须与 Key 匹配。不能把别人的 Key 直接配到原来的 `llm-w115702gcv6zwvwy`。
 - TTS：点击「合成测试语音」，服务器合成固定测试句，返回 WAV 后点击播放器试听。
 - ASR：选择 3–10 秒清晰人声文件（最多 5MB），点击「识别上传语音」。服务器转换为 16kHz 单声道 WAV 后请求录音 ASR。
 - 模型分别是 `qwen-audio-3.1-asr-flash` 和 `qwen-audio-3.1-tts-flash`，TTS 音色 `longanhuan_v3.1`，输出 24kHz PCM 包装 WAV。
@@ -60,6 +60,7 @@ PostgreSQL 保存会话、原始文字、模板版本、事实来源、报告、
 | 报告失败 | 转录仍在，点击重新生成报告；不要为修复报告而删除会话 |
 | 千问尚未配置 | 在语音配置保存新 Key，不会回退使用历史泄露 Key |
 | 千问 401/403 | 核对 Key 与北京业务空间、模型权限 |
+| TTS 报 workspace must match / ASR Endpoint.AccessDenied | Key 不匹配指定空间；向提供者确认正确空间，或在支持官方默认入口时将空间留空后分别测试，不能据此直接判定 Key 已失效 |
 | ASR 无文字 | 先本地试听文件，检查是否有清晰人声；文件有波形不一定有人声 |
 | TTS 无音频 | 核对模型权限、额度、Python DashScope 环境及出口，成功后手动点播放器 |
 | 线路状态不可用 | 检查本机 5055 服务及私有状态凭据，不需要把 5055 暴露公网 |
@@ -73,3 +74,5 @@ PostgreSQL 保存会话、原始文字、模板版本、事实来源、报告、
 首次收尾测试曾收到非 JSON 模型内容。修复为单一系统约束、JSON 形式的历史助手回复及明确的结束控制消息，同时验证返回完成状态并记录脱敏格式诊断。复测通过；这不是对模型永不出错的保证，后续异常仍可重试并保留原文字。
 
 脚本 `scripts/validate-consultation.py --live` 会创建标记为验收用途的咨询并真实调用模型、消耗额度。浏览器验收脚本需要 Playwright（可用 `PLAYWRIGHT_MODULE` 指向已有模块）。当前无新千问 Key，故未验证实际 ASR/TTS 成功，也未拨打电话。
+
+后续语音排查：提供的新 Key 在原指定空间返回 TTS workspace mismatch 和 ASR 403；改用官方默认入口后，直接调用 TTS 已返回 PCM，录音 ASR 返回 200 并准确识别测试句。因此增加空业务空间的默认入口选项。`scripts/validate-qwen-services.py` 在服务器读取私有环境配置，经工作台接口保存加密配置并分别测试 ASR/TTS，结果写入被 Git 忽略的 `BigApple输出/qwen-validation/`，不输出 Key。测试音频为操作系统合成的已知中文句子，不是麦克风实录，不能代表手机、麦克风或实时通话已经验收。
