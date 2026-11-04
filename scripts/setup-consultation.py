@@ -25,6 +25,7 @@ if not url:
     values['CONSULTATION_DATABASE_URL'] = f'postgresql://persona_consult:{password}@127.0.0.1:5432/persona_consult'
 values.setdefault('CONSULTATION_ADMIN_PASSWORD', secrets.token_urlsafe(30))
 values.setdefault('CONSULTATION_ENCRYPTION_KEY', secrets.token_hex(32))
+values.setdefault('CONSULTATION_AGENT_SECRET', secrets.token_hex(32))
 values['CONSULTATION_PUBLIC_ORIGIN'] = 'https://phone.hehaizhao.site'
 values['PERSONA_PROJECT_ROOT'] = str(root)
 phone = subprocess.run(['sudo', 'cat', '/etc/persona-phone-console.env'], capture_output=True, text=True)
@@ -32,7 +33,7 @@ if phone.returncode == 0:
     phone_values = dict(line.split('=', 1) for line in phone.stdout.splitlines() if '=' in line and not line.startswith('#'))
     if phone_values.get('PHONE_CONSOLE_PASSWORD'):
         values['PHONE_CONSOLE_PASSWORD'] = phone_values['PHONE_CONSOLE_PASSWORD']
-keys = {'CONSULTATION_DATABASE_URL', 'CONSULTATION_ADMIN_PASSWORD', 'CONSULTATION_ENCRYPTION_KEY', 'CONSULTATION_PUBLIC_ORIGIN', 'PERSONA_PROJECT_ROOT', 'PHONE_CONSOLE_PASSWORD'}
+keys = {'CONSULTATION_DATABASE_URL', 'CONSULTATION_ADMIN_PASSWORD', 'CONSULTATION_ENCRYPTION_KEY', 'CONSULTATION_AGENT_SECRET', 'CONSULTATION_PUBLIC_ORIGIN', 'PERSONA_PROJECT_ROOT', 'PHONE_CONSOLE_PASSWORD'}
 output = [line for line in lines if line.split('=', 1)[0] not in keys]
 output.extend(key + '=' + values[key] for key in sorted(keys) if key in values)
 os.umask(0o077)

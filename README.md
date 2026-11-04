@@ -6,7 +6,7 @@
 
 网页版：https://phone.hehaizhao.site/ （需要访问码）
 
-咨询工作台：https://phone.hehaizhao.site/consult （独立管理员密码）。支持真实 DeepSeek 睡眠文字调研、过程持久化、结束归档、报告和完整转录 Markdown 导出。千问共用 Key 在「语音配置」中填写；此阶段电话拨打禁用。部署、日志及排查说明见 [咨询工作台手册](docs/CONSULTATION_WORKSPACE.md)。
+咨询工作台：https://phone.hehaizhao.site/consult （独立管理员密码）。支持网页实时语音和真实 DeepSeek 文字调研：千问流式 ASR → DeepSeek → 千问 TTS，双方转录同步展示、插话打断、结束语播放后归档、报告和转录双 Markdown 导出。千问共用 Key 在「语音配置」中填写。现有 SIM 电话接入同一咨询归档，公网拨号按钮仍禁用，拨打使用私有控制台。部署、日志及排查说明见 [咨询工作台手册](docs/CONSULTATION_WORKSPACE.md)。
 
 ## 当前架构
 

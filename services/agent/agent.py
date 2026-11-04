@@ -11,6 +11,7 @@ from qwen_stt import QwenSTT
 from qwen_streaming_stt import QwenStreamingSTT
 from qwen_tts import QwenTTS
 from phone_transcript import attach_phone_transcript
+from consultation_voice import VoiceJournal, VoiceController, ConsultationAssistant
 
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / ".env")
@@ -47,16 +48,25 @@ server = AgentServer(num_idle_processes=int(os.getenv('LIVEKIT_AGENT_IDLE_PROCES
 
 @server.rtc_session(agent_name=AGENT_NAME)
 async def persona_voice(ctx: JobContext) -> None:
+    await ctx.connect()
     ctx.log_context_fields = {"room": ctx.room.name}
+    consultation=ctx.room.name.startswith(('consult-','sim-ai-'))
+    journal=VoiceJournal(ctx.room.name) if consultation else None
+    speech={}
+    if journal:
+        try:speech=(await journal.start())['speech']
+        except Exception:
+            await journal.close()
+            raise
     session = AgentSession(
-        stt=QwenStreamingSTT() if os.getenv('ASR_MODE', 'streaming') == 'streaming' else QwenSTT(),
+        stt=QwenStreamingSTT(**speech) if consultation or os.getenv('ASR_MODE', 'streaming') == 'streaming' else QwenSTT(),
         llm=openai.LLM.with_deepseek(
             api_key=required("DEEPSEEK_API_KEY"),
             model=os.getenv("LLM_MODEL", "deepseek-chat"),
             base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"),
             temperature=0.6,
         ),
-        tts=QwenTTS(),
+        tts=QwenTTS(**speech),
         vad=silero.VAD.load(
             min_speech_duration=0.08,
             min_silence_duration=0.5,
@@ -68,15 +78,16 @@ async def persona_voice(ctx: JobContext) -> None:
             turn_detection="vad",
             endpointing={"min_delay": 0.45, "max_delay": 1.5},
             interruption={"enabled": True, "min_duration": 0.35},
-            preemptive_generation={"enabled": True},
+            preemptive_generation={"enabled": not consultation},
         ),
     )
 
     attach_phone_transcript(session, ctx.room.name)
-    await session.start(agent=PersonaAssistant(), room=ctx.room)
-    await ctx.connect()
+    controller=VoiceController(ctx,session,journal) if journal else None
+    if controller:controller.attach()
+    await session.start(agent=ConsultationAssistant(controller) if controller else PersonaAssistant(), room=ctx.room)
     session.generate_reply(
-        instructions="请用一句自然的中文主动打招呼，介绍你叫小禾，然后问用户今天想聊什么。"
+        instructions="请介绍你是AI小禾，进行非诊断的睡眠习惯调研，会保存文字转录并生成报告，询问对方是否方便并同意开始。只说一两句话。" if consultation else "请用一句自然的中文主动打招呼，介绍你叫小禾，然后问用户今天想聊什么。"
     )
 
 

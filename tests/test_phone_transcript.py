@@ -30,6 +30,7 @@ class TranscriptTests(unittest.TestCase):
             self.assertFalse(web.handlers)
             session = Session()
             module.attach_phone_transcript(session, 'sim-ai-test')
+            session.handlers['conversation_item_added'](SimpleNamespace(item=SimpleNamespace(type='agent_handoff')))
             item = SimpleNamespace(id='1', role='user', text_content='<script>test</script>', interrupted=False)
             for _ in range(2):
                 session.handlers['conversation_item_added'](SimpleNamespace(item=item))

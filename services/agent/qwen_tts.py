@@ -8,11 +8,11 @@ from livekit.agents import DEFAULT_API_CONNECT_OPTIONS, tts
 
 
 class QwenTTS(tts.TTS):
-    def __init__(self):
+    def __init__(self, *, key=None, workspace=None):
         super().__init__(capabilities=tts.TTSCapabilities(streaming=False),
                          sample_rate=24000, num_channels=1)
-        self.key = os.getenv('DASHSCOPE_TTS_API_KEY') or os.environ['DASHSCOPE_API_KEY']
-        self.workspace = os.getenv('DASHSCOPE_TTS_WORKSPACE') or os.environ['DASHSCOPE_WORKSPACE']
+        self.key = key or os.getenv('DASHSCOPE_TTS_API_KEY') or os.environ['DASHSCOPE_API_KEY']
+        self.workspace = (os.getenv('DASHSCOPE_TTS_WORKSPACE') or os.getenv('DASHSCOPE_WORKSPACE','')) if workspace is None else workspace
         self.voice = os.getenv('QWEN_TTS_VOICE', 'longanhuan_v3.1')
 
     @property

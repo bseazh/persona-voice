@@ -15,10 +15,11 @@ logger = logging.getLogger(__name__)
 
 
 class QwenSTT(stt.STT):
-    def __init__(self):
+    def __init__(self, *, key=None, workspace=None):
         super().__init__(capabilities=stt.STTCapabilities(streaming=False, interim_results=False))
-        self.key = os.environ['DASHSCOPE_API_KEY']
-        self.url = os.environ['QWEN_ASR_URL']
+        self.key = key or os.environ['DASHSCOPE_API_KEY']
+        self.workspace = os.getenv('DASHSCOPE_WORKSPACE', '') if workspace is None else workspace
+        self.url = ((f'https://{self.workspace}.cn-beijing.maas.aliyuncs.com/api/v1' if self.workspace else 'https://dashscope.aliyuncs.com/api/v1') + '/services/aigc/multimodal-generation/generation') if key else os.environ['QWEN_ASR_URL']
 
     @property
     def model(self):

@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class QwenStreamingSTT(QwenSTT):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self._capabilities = stt.STTCapabilities(streaming=True, interim_results=True)
 
     def stream(self, *, language=None, conn_options=DEFAULT_API_CONNECT_OPTIONS):
@@ -23,7 +23,7 @@ class QwenStreamingSTT(QwenSTT):
 class QwenStream(stt.RecognizeStream):
     async def _run(self):
         client = dashscope.Client(api_key=self._stt.key,
-                                 workspace=os.environ['DASHSCOPE_WORKSPACE'],
+                                 workspace=self._stt.workspace,
                                  region='cn-beijing', timeout=120)
         session = client.audio.asr.recognize(
             model=os.getenv('QWEN_STREAMING_ASR_MODEL', 'qwen-audio-3.1-asr-flash-streaming'),

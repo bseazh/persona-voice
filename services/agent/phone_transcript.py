@@ -32,7 +32,7 @@ def attach_phone_transcript(session, room_name):
     @session.on('conversation_item_added')
     def item_added(event):
         item = event.item
-        if item.role not in ('user', 'assistant') or not item.text_content:
+        if getattr(item,'role',None) not in ('user', 'assistant') or not item.text_content:
             return
         message = {'id': item.id, 'role': item.role, 'text': item.text_content[:8000],
                    'at': time.time(), 'interrupted': bool(getattr(item, 'interrupted', False))}

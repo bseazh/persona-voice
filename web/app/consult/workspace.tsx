@@ -1,12 +1,21 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import VoiceRoom from "./voice-room";
 import "./workspace.css";
-type Message = { id: string; role: string; text: string; created_at: string };
+type Message = {
+  id: string;
+  role: string;
+  text: string;
+  created_at: string;
+  interrupted?: boolean;
+};
 type Consultation = {
   id: string;
   title: string;
   status: string;
+  mode: "text" | "voice" | "phone";
+  voice_state?: string;
   created_at: string;
   ended_at?: string;
   reason?: string;
@@ -83,6 +92,7 @@ export default function Workspace() {
     text: string;
     requestId: string;
   } | null>(null);
+  const [mode, setMode] = useState<"text" | "voice">("voice");
   async function refreshList() {
     setList(await api("sessions"));
   }
@@ -103,7 +113,7 @@ export default function Workspace() {
       .catch(() => setLogged(false));
   }, []);
   useEffect(() => {
-    if (!current || page !== "chat") return;
+    if (!current || !["chat", "result"].includes(page)) return;
     const id = current.id;
     const interval = setInterval(() => {
       api("session?id=" + id)
@@ -112,7 +122,7 @@ export default function Workspace() {
           if (c.status === "closed") setPage("result");
         })
         .catch(() => {});
-    }, 2500);
+    }, 1500);
     return () => clearInterval(interval);
   }, [current?.id, page]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -144,9 +154,10 @@ export default function Workspace() {
   }
   async function start() {
     await run(async () => {
-      const c = await api("create", { title, consent });
+      const c = await api("create", { title, consent, mode });
       await load(c.id);
       await refreshList();
+      if (mode === "voice") return;
       const first = await api("turn", {
         id: c.id,
         requestId: crypto.randomUUID(),
@@ -156,6 +167,13 @@ export default function Workspace() {
   }
   async function send(finish = false) {
     if (!current) return;
+    if (current.mode !== "text") {
+      await run(async () => {
+        await api("voice-end", { id: current.id });
+        setNotice("已请求结束，等待结束语播放和归档。");
+      });
+      return;
+    }
     await run(async () => {
       const value = text.trim();
       if (!finish && !value) return;
@@ -241,7 +259,7 @@ export default function Workspace() {
         <a href="/consult" className="cw-brand">
           PERSONA<span>咨询工作台</span>
         </a>
-        <span className="cw-tag">真实文字咨询 · 睡眠调研</span>
+        <span className="cw-tag">实时语音 / 文字 · 睡眠调研</span>
         {logged && (
           <button
             className="cw-quiet"
@@ -335,12 +353,24 @@ export default function Workspace() {
                   <div>
                     <div className="cw-kicker">CONSULTATIONS</div>
                     <h1>每次沟通，都有据可查</h1>
-                    <p>从真实文字咨询开始，结束后获得报告与完整转录。</p>
+                    <p>用语音或文字开展咨询，结束后获得报告与完整转录。</p>
                   </div>
                 </div>
                 <div className="cw-grid">
                   <section>
                     <h2>新建睡眠调研</h2>
+                    <label>
+                      咨询方式
+                      <select
+                        value={mode}
+                        onChange={(e) =>
+                          setMode(e.target.value as "text" | "voice")
+                        }
+                      >
+                        <option value="voice">网页实时语音</option>
+                        <option value="text">文字咨询</option>
+                      </select>
+                    </label>
                     <p>
                       了解作息、入睡、白天状态及生活习惯。AI
                       每次聚焦一个问题，支持跳过或随时结束。
@@ -365,7 +395,11 @@ export default function Workspace() {
                       我已了解并同意保存本次咨询文字
                     </label>
                     <button disabled={!consent || busy} onClick={start}>
-                      {busy ? "正在准备…" : "开始真实文字咨询"}
+                      {busy
+                        ? "正在准备…"
+                        : mode === "voice"
+                          ? "创建语音咨询"
+                          : "开始真实文字咨询"}
                     </button>
                     <small>由 DeepSeek 生成回答，非预设回复。</small>
                   </section>
@@ -416,17 +450,28 @@ export default function Workspace() {
                     <div className="cw-kicker">LIVE CONSULTATION</div>
                     <h1>{current.title}</h1>
                     <p>
-                      文字咨询 · 按轮更新，AI 正在处理时可以查看已保存的消息。
+                      {current.mode === "text"
+                        ? "文字咨询 · 按轮显示回复"
+                        : current.mode === "phone"
+                          ? "电话咨询 · 同步查看最终转录"
+                          : "语音咨询 · 支持连续问答和插话打断"}
                     </p>
                   </div>
                   <button
                     className="cw-secondary"
-                    disabled={busy}
+                    disabled={busy || current.voice_state === "ending"}
                     onClick={() => send(true)}
                   >
                     结束咨询并生成报告
                   </button>
                 </div>
+                {current.mode === "voice" && (
+                  <VoiceRoom
+                    key={current.id}
+                    id={current.id}
+                    ending={current.voice_state === "ending"}
+                  />
+                )}
                 <div className="cw-chat-grid">
                   <section className="cw-chat">
                     <div className="cw-messages" role="log" aria-live="polite">
@@ -437,42 +482,47 @@ export default function Workspace() {
                             {new Date(m.created_at).toLocaleTimeString()}
                           </small>
                           <p>{m.text}</p>
+                          {m.interrupted && <small>此回答被打断</small>}
                         </article>
                       ))}
                       {busy && <p className="cw-thinking">小禾正在整理回复…</p>}
-                      {!current.messages.length && !busy && (
-                        <button
-                          onClick={() =>
-                            run(async () => {
-                              setCurrent(
-                                await api("turn", {
-                                  id: current.id,
-                                  requestId: crypto.randomUUID(),
-                                }),
-                              );
-                            })
-                          }
-                        >
-                          重新获取开场问候
-                        </button>
-                      )}
+                      {current.mode === "text" &&
+                        !current.messages.length &&
+                        !busy && (
+                          <button
+                            onClick={() =>
+                              run(async () => {
+                                setCurrent(
+                                  await api("turn", {
+                                    id: current.id,
+                                    requestId: crypto.randomUUID(),
+                                  }),
+                                );
+                              })
+                            }
+                          >
+                            重新获取开场问候
+                          </button>
+                        )}
                     </div>
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        void send();
-                      }}
-                      className="cw-compose"
-                    >
-                      <textarea
-                        aria-label="咨询回复"
-                        placeholder="说说你的实际情况，也可以输入“跳过”或“结束”…"
-                        value={text}
-                        maxLength={2000}
-                        onChange={(e) => setText(e.target.value)}
-                      />
-                      <button disabled={busy || !text.trim()}>发送</button>
-                    </form>
+                    {current.mode === "text" && (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          void send();
+                        }}
+                        className="cw-compose"
+                      >
+                        <textarea
+                          aria-label="咨询回复"
+                          placeholder="说说你的实际情况，也可以输入“跳过”或“结束”…"
+                          value={text}
+                          maxLength={2000}
+                          onChange={(e) => setText(e.target.value)}
+                        />
+                        <button disabled={busy || !text.trim()}>发送</button>
+                      </form>
+                    )}
                   </section>
                   <aside>
                     <section>
@@ -506,7 +556,9 @@ export default function Workspace() {
                     <h1>本次咨询已结束</h1>
                     <p>
                       {current.title} · {Math.floor(duration / 60)} 分{" "}
-                      {duration % 60} 秒 · 文字咨询（包含输入和等待时间）
+                      {duration % 60} 秒 ·{" "}
+                      {current.mode === "text" ? "文字咨询" : "语音咨询"}
+                      （包含连接和等待时间）
                     </p>
                   </div>
                   <button
@@ -668,7 +720,8 @@ export default function Workspace() {
                       />
                     </label>
                     <p className="cw-muted">
-                      留空使用阿里云官方默认入口；指定北京业务空间时，Key 必须与该空间匹配。此配置用于工作台测试，尚不启用手机通话。
+                      留空使用阿里云官方默认入口；指定北京业务空间时，Key
+                      必须与该空间匹配。此配置用于工作台测试，尚不启用手机通话。
                     </p>
                     <button
                       disabled={busy || !key.trim()}

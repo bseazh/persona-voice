@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
+  AccessToken,
+  RoomConfiguration,
+  RoomServiceClient,
+} from "livekit-server-sdk";
+import {
   db,
   initDB,
   UserError,
@@ -241,7 +246,10 @@ export async function POST(req: NextRequest) {
           throw new UserError("请选择不超过 5MB 的短语音文件");
         const wav = await toWav(Buffer.from(await file.arrayBuffer()));
         const upstream = await fetch(
-          (config.workspace ? `https://${config.workspace}.cn-beijing.maas.aliyuncs.com/api/v1` : 'https://dashscope.aliyuncs.com/api/v1') + '/services/aigc/multimodal-generation/generation',
+          (config.workspace
+            ? `https://${config.workspace}.cn-beijing.maas.aliyuncs.com/api/v1`
+            : "https://dashscope.aliyuncs.com/api/v1") +
+            "/services/aigc/multimodal-generation/generation",
           {
             method: "POST",
             headers: {
@@ -279,7 +287,10 @@ export async function POST(req: NextRequest) {
           );
         const body = await upstream.json();
         const text =
-          body.text ?? body.output?.text ?? body.output?.sentence?.text ?? body.output?.output?.text;
+          body.text ??
+          body.output?.text ??
+          body.output?.sentence?.text ??
+          body.output?.output?.text;
         if (typeof text !== "string" || !text.trim())
           throw new UserError("未识别到有效文字，请检查音频人声", 422);
         response = json({
@@ -314,9 +325,11 @@ export async function POST(req: NextRequest) {
         throw new UserError("请输入有效 Key");
       if (
         typeof b.workspace !== "string" ||
-        (b.workspace !== '' && !/^llm-[a-zA-Z0-9-]{5,80}$/.test(b.workspace))
+        (b.workspace !== "" && !/^llm-[a-zA-Z0-9-]{5,80}$/.test(b.workspace))
       )
-        throw new UserError("请输入北京业务空间 ID（llm- 开头），或留空使用官方默认入口");
+        throw new UserError(
+          "请输入北京业务空间 ID（llm- 开头），或留空使用官方默认入口",
+        );
       const value = {
         encrypted: seal(b.key),
         workspace: b.workspace,
@@ -354,23 +367,105 @@ export async function POST(req: NextRequest) {
       if (b.consent !== true)
         throw new UserError("请先确认文字保存与非诊断声明");
       const id = randomUUID();
+      const mode = b.mode === "voice" ? "voice" : "text";
+      if (mode === "voice") {
+        const speech = await speechSettings();
+        if (!speech.configured || !speech.asr_test?.ok || !speech.tts_test?.ok)
+          throw new UserError("请先在语音配置完成 ASR 和 TTS 测试");
+      }
       const title =
         typeof b.title === "string"
           ? b.title.trim().slice(0, 80)
           : "睡眠习惯咨询";
       await db.query(
-        "INSERT INTO consult_sessions(id,title,template) VALUES($1,$2,$3)",
-        [id, title || "睡眠习惯咨询", JSON.stringify(template)],
+        "INSERT INTO consult_sessions(id,title,template,mode,room_name,voice_state) VALUES($1,$2,$3,$4,$5,$6)",
+        [
+          id,
+          title || "睡眠习惯咨询",
+          JSON.stringify(template),
+          mode,
+          mode === "voice" ? "consult-" + id : null,
+          mode === "voice" ? "ready" : null,
+        ],
       );
       await event(id, "session.created", {
         template: "sleep-v1",
-        mode: "text",
+        mode,
         consent: true,
       });
       return json({ id }, 201);
     }
     const id = typeof b.id === "string" ? b.id : "";
     await session(id);
+    if (path === "voice-token") {
+      const c = await session(id);
+      if (
+        c.mode !== "voice" ||
+        c.status !== "active" ||
+        c.voice_state === "ending"
+      )
+        throw new UserError("此会话无法进入语音房间", 409);
+      const url = process.env.LIVEKIT_URL,
+        key = process.env.LIVEKIT_API_KEY,
+        secret = process.env.LIVEKIT_API_SECRET;
+      if (!url || !key || !secret)
+        throw new UserError("实时通信服务未配置", 503);
+      await limit("voice-join", 20, 600);
+      const token = new AccessToken(key, secret, {
+        identity: "consult-user-" + id,
+        name: "咨询用户",
+        ttl: "10m",
+      });
+      token.addGrant({
+        room: c.room_name,
+        roomJoin: true,
+        canPublish: true,
+        canSubscribe: true,
+        canPublishData: true,
+      });
+      token.roomConfig = RoomConfiguration.fromJson({
+        agents: [
+          {
+            agentName: process.env.LIVEKIT_AGENT_NAME || "persona-voice-agent",
+          },
+        ],
+      });
+      await db.query(
+        "UPDATE consult_sessions SET voice_state='connecting' WHERE id=$1 AND voice_state='ready'",
+        [id],
+      );
+      await event(id, "voice.token_issued");
+      return json({ serverUrl: url, participantToken: await token.toJwt() });
+    }
+    if (path === "voice-end") {
+      const c = await session(id);
+      if (c.mode === "text" || c.status !== "active")
+        throw new UserError("此语音会话已结束", 409);
+      await db.query(
+        "UPDATE consult_sessions SET voice_state='ending' WHERE id=$1",
+        [id],
+      );
+      await event(id, "voice.end_requested");
+      return json({ ok: true });
+    }
+    if (path === "voice-abort") {
+      const c = await session(id);
+      if (c.mode === "text") throw new UserError("不是语音会话");
+      if (c.room_name) {
+        const rooms = new RoomServiceClient(
+          process.env.LIVEKIT_URL!.replace(/^ws/, "http"),
+          process.env.LIVEKIT_API_KEY,
+          process.env.LIVEKIT_API_SECRET,
+        );
+        await rooms.deleteRoom(c.room_name).catch(() => {});
+      }
+      await db.query(
+        "UPDATE consult_sessions SET status='closed',voice_state='ended',ended_at=COALESCE(ended_at,now()),reason=COALESCE(reason,'operator_force_end') WHERE id=$1",
+        [id],
+      );
+      await event(id, "voice.force_end");
+      return json({ ok: true });
+    }
     if (path === "turn")
       return json(
         await turn(
