@@ -6,6 +6,8 @@
 
 网页版：https://phone.hehaizhao.site/ （需要访问码）
 
+咨询工作台：https://phone.hehaizhao.site/consult （独立管理员密码）。支持真实 DeepSeek 睡眠文字调研、过程持久化、结束归档、报告和完整转录 Markdown 导出。千问共用 Key 在「语音配置」中填写；此阶段电话拨打禁用。部署、日志及排查说明见 [咨询工作台手册](docs/CONSULTATION_WORKSPACE.md)。
+
 ## 当前架构
 
 下图展示当前部署、音频流向与调试通道；商业 SIP 中继为未来方案，尚未接入。USB / ADB 只用于配置和排障，不承载实际通话音频。

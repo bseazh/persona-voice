@@ -7,6 +7,7 @@ __pycache__/
 data/
 web/node_modules/
 web/.next/
+web/*.tsbuildinfo
 web/out/
 .DS_Store
 .agents/
