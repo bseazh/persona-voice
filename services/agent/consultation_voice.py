@@ -11,6 +11,7 @@ import aiohttp
 from livekit import api
 from livekit.agents import Agent, RunContext, function_tool
 from turn_profile import turn_profile
+from qwen_tts import tts_mode
 
 ROOT = Path(__file__).resolve().parents[2]
 logger = logging.getLogger(__name__)
@@ -143,7 +144,7 @@ class VoiceController:
             'tts_model': os.getenv('QWEN_TTS_MODEL', 'qwen-audio-3.1-tts-flash'),
             'tts_voice': os.getenv('QWEN_TTS_VOICE', 'longanhuan_v3.1'),
             'tts_sample_rate': 24000,
-            'tts_mode': 'sentence_input_chunked_pcm_output',
+            'tts_mode': tts_mode(),
             'turn_profile': turn_profile(), 'transcription_timeout': 4.0,
             'preemptive_generation': False})
         @self.session.on('conversation_item_added')
