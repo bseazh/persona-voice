@@ -111,9 +111,10 @@ async def main():
                 'farewell_count':sum(e['kind']=='voice.farewell_played' for e in events),
                 'error_kinds':[e['kind'] for e in events if e['kind'] in ('voice.error','voice.farewell_failed')],
                 'room_release':[e['payload'] for e in events if e['kind']=='voice.room_release']})
-            released = any(e.get('confirmed') for e in report['room_release']) if args.route in ('qwen-realtime','doubao-realtime') else state['disconnected']
+            released = any(e.get('confirmed') for e in report['room_release']) if args.route in ('qwen-realtime','doubao-realtime','baidu-realtime') else state['disconnected']
             report['benchmark_config']=[e['payload'] for e in events if e['kind']=='voice.benchmark_config']
-            report['ok']=current['status']=='closed' and current['voice_route']==args.route and report['farewell_count']==1 and not report['error_kinds'] and released
+            farewell_ok = report['farewell_count']==0 if args.route=='baidu-realtime' and args.ending=='operator' else report['farewell_count']==1
+            report['ok']=current['status']=='closed' and current['voice_route']==args.route and farewell_ok and not report['error_kinds'] and released
         except Exception as error:
             report.update(ok=False,error_type=type(error).__name__,error=str(error)[:200])
         finally:
@@ -125,6 +126,10 @@ async def main():
                 except Exception:pass
             await request('logout',{})
     print(json.dumps(report,ensure_ascii=False,indent=2))
+    if args.route=='baidu-realtime':
+        target=ROOT/'BigApple输出/baidu-lite-validation/room-result.json'
+        target.parent.mkdir(parents=True,exist_ok=True)
+        target.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     if not report['ok']:raise SystemExit(1)
 
 

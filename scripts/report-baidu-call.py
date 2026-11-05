@@ -28,6 +28,9 @@ ended=next((p['at'] for p in reversed(states) if p.get('state') in ('ended','fai
 duration=ended-connected if connected is not None and ended is not None else None
 stops=[e['payload']['at'] for e in events if e['kind']=='voice.realtime_event' and e['payload'].get('type')=='input_audio_buffer.speech_stopped']
 starts=[e['payload']['at'] for e in events if e['kind']=='voice.realtime_event' and e['payload'].get('type')=='input_audio_buffer.speech_started']
+creation_times={e['payload']['response_id']:e['payload']['at'] for e in events if e['kind']=='voice.realtime_event' and e['payload'].get('type')=='response.created'}
+model_metrics={e['payload']['request_id']:e['payload'] for e in events if e['kind']=='voice.metrics' and e['payload'].get('request_id')}
+assistant_timings=[e['payload'] for e in events if e['kind']=='voice.turn_timing' and e['payload'].get('role')=='assistant']
 latencies=[]
 for e in events:
     if e['kind']!='voice.realtime_first_audio':continue
@@ -35,7 +38,19 @@ for e in events:
     prior=[s for s in stops if 0<=at-s<15]
     if prior:
         stop=max(prior)
-        if not any(stop<s<at for s in starts):latencies.append({'response_id':p['response_id'],'seconds':at-stop})
+        if not any(stop<s<at for s in starts):
+            rid=p['response_id']
+            candidates=[t for t in assistant_timings if 0<=t.get('metrics',{}).get('started_speaking_at',0)-at<1]
+            matched=candidates[0] if len(candidates)==1 else None
+            m=matched['metrics'] if matched else {}
+            latencies.append({'response_id':rid,'seconds':at-stop,
+                'speech_stopped_received_at':stop,'response_created_received_at':creation_times.get(rid),
+                'first_audio_received_at':at,'sdk_model_ttft_s':model_metrics.get(rid,{}).get('ttft'),
+                'assistant_output_started_at':m.get('started_speaking_at'),
+                'assistant_output_stopped_at':m.get('stopped_speaking_at'),
+                'event_stop_to_agent_output_s':m['started_speaking_at']-stop if m.get('started_speaking_at') else None,
+                'assistant_interrupted':matched.get('interrupted') if matched else None,
+                'output_match':'unique start within 1s of first audio; temporal heuristic' if matched else 'unmatched'})
 sdk=[e['payload'] for e in events if e['kind']=='voice.turn_timing' and e['payload'].get('role')=='assistant']
 sdk_times=[p['metrics']['e2e_latency'] for p in sdk if not p.get('interrupted') and p.get('metrics',{}).get('e2e_latency') is not None]
 out={'session_id':d['id'],'route':'baidu-realtime','target_seconds':d.get('durationSeconds'),
