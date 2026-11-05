@@ -26,9 +26,10 @@ async def main():
     parser.add_argument('--ending',choices=['natural','operator'],default='natural')
     parser.add_argument('--route',choices=['qwen-realtime','doubao-realtime','pipeline-mimo','pipeline-mimo-all','baidu-realtime'],default='qwen-realtime')
     parser.add_argument('--followup',action='store_true',help='Add a second real audio question before ending')
+    parser.add_argument('--procurement',action='store_true',help='Validate procurement instructions with synthetic supplier audio')
     args=parser.parse_args()
     origin='https://phone.hehaizhao.site'
-    question=await fixture.fixture('请告诉我一天有多少个小时。')
+    question=await fixture.fixture('方便，我们只做破碎机和滚筒筛，不负责整线集成，电机的具体型号我稍后发给您。' if args.procurement else '请告诉我一天有多少个小时。')
     goodbye=await fixture.fixture('今天就聊到这里吧，再见，请挂断电话。')
     followup=await fixture.fixture('请告诉我二加二等于几，只回答数字。') if args.followup else None
     room=rtc.Room()
@@ -57,8 +58,10 @@ async def main():
                 if response.status>=400:raise RuntimeError(f'workspace_{path.split("?")[0]}_{response.status}')
                 return await response.json()
         await request('login',{'password':os.environ['CONSULTATION_ADMIN_PASSWORD']})
-        session=await request('create',{'title':'[自动验收] '+args.route+' '+args.ending,
-            'mode':'voice','voiceRoute':args.route,'consent':True})
+        body={'title':'[自动验收] '+('采购模板 ' if args.procurement else '')+args.route+' '+args.ending,
+            'mode':'voice','voiceRoute':args.route,'consent':True}
+        if args.procurement:body.update(template='procurement-screening-v1',project={'project':'生活垃圾分选设备采购验证','scenario':'生活垃圾分选，不是塑料清洗造粒','outputs':'瓶子和薄膜分选','capacity':'十五吨，单位待确认'})
+        session=await request('create',body)
         sid=session['id'];report['session_id']=sid
         try:
             details=await request('voice-token',{'id':sid})
@@ -79,10 +82,12 @@ async def main():
                 # entirely empty source would never finish. Its queue is 100ms.
                 await asyncio.sleep(.15)
             await until(lambda:state['agent']=='listening' and (args.route=='baidu-realtime' or state['audio_frames']>0))
+            before=await request('session?id='+sid)
+            before_ids={m['id'] for m in before['messages']}
             await send(question)
             for _ in range(60):
                 current=await request('session?id='+sid)
-                if any(m['role']=='assistant' and ('24' in m['text'] or '二十四' in m['text']) for m in current['messages']):break
+                if any(m['role']=='assistant' and (m['id'] not in before_ids if args.procurement else ('24' in m['text'] or '二十四' in m['text'])) for m in current['messages']):break
                 await asyncio.sleep(.5)
             else:raise RuntimeError('answer_not_persisted')
             if followup is not None:
@@ -115,6 +120,8 @@ async def main():
             report['benchmark_config']=[e['payload'] for e in events if e['kind']=='voice.benchmark_config']
             farewell_ok = report['farewell_count']==0 if args.route=='baidu-realtime' and args.ending=='operator' else report['farewell_count']==1
             report['ok']=current['status']=='closed' and current['voice_route']==args.route and farewell_ok and not report['error_kinds'] and released
+            report['behavior_ok']=current['status']=='closed' and current['voice_route']==args.route and farewell_ok and not report['error_kinds'] and state['disconnected'] and state['audio_frames']>0
+            report['room_release_audit_present']=bool(report['room_release'])
         except Exception as error:
             report.update(ok=False,error_type=type(error).__name__,error=str(error)[:200])
         finally:
@@ -126,6 +133,10 @@ async def main():
                 except Exception:pass
             await request('logout',{})
     print(json.dumps(report,ensure_ascii=False,indent=2))
+    if args.procurement:
+        target=ROOT/f'BigApple输出/采购模板验收/qwen-room-{sid}.json'
+        target.parent.mkdir(parents=True,exist_ok=True)
+        target.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     if args.route=='baidu-realtime':
         target=ROOT/'BigApple输出/baidu-lite-validation/room-result.json'
         target.parent.mkdir(parents=True,exist_ok=True)

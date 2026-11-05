@@ -388,14 +388,14 @@ export default function Workspace() {
                       </select>
                     </label>}
                     <p>{businessTemplate===procurementId ? "顺着供应商回答自然追问，确认供货范围、能力与待办。语音请选择原路线或 Qwen 全双工。文字模式可先验证提问与信息采集。" : "自由选择话题，支持连续问答、插话和随时结束。"}</p>
-                    <label>
+                    {businessTemplate!==procurementId && <label>
                       咨询标题
                       <input
                         value={title}
                         maxLength={80}
                         onChange={(e) => setTitle(e.target.value)}
                       />
-                    </label>
+                    </label>}
                     <div className="cw-disclaimer">
                       本次文字会保存在服务器用于生成报告，可在结果页删除；不保存通话录音。请勿填写无关个人隐私。供应商口述、技术与商务条件需要人工核验，AI 不代表采购批准。
                     </div>
