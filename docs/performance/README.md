@@ -10,6 +10,7 @@
 - [05 简短发言：时延与咨询质量](05-concise.md)
 - [脱敏原始测量](measurements.json)
 - [测试协议与指标定义](../LATENCY_BENCHMARK.md)
+- [最新调整：自由对话与识别收尾排查](FREE_CHAT_ASR_PLAN.md)：新测试取消健康问卷；TTS 按供应商、模型、音色分组记录。
 
 ## GitHub Issues
 

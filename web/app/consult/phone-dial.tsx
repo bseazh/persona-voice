@@ -31,7 +31,7 @@ export default function PhoneDial({
 }) {
   const [line, setLine] = useState<Line | null>(null),
     [number, setNumber] = useState(""),
-    [title, setTitle] = useState("电话睡眠调研");
+    [title, setTitle] = useState("电话自由对话");
   const [consent, setConsent] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -75,7 +75,7 @@ export default function PhoneDial({
     try {
       const result = await request("phone-dial", {
         ...payload,
-        template: "sleep-v1",
+        template: "free-chat-v1",
         sim: 2,
         consent,
       });
@@ -101,7 +101,7 @@ export default function PhoneDial({
           <label>
             咨询模板
             <select disabled={busy}>
-              <option value="sleep-v1">睡眠与生活习惯调研 v1</option>
+              <option value="free-chat-v1">自由对话测试 v1</option>
             </select>
           </label>
           <small>目前开放一个已验证模板；内容由模型根据真实回答生成。</small>

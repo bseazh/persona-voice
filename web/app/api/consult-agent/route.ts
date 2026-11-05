@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
         } else
           await db.query(
             "INSERT INTO consult_sessions(id,title,template,mode,room_name,voice_state) VALUES($1,$2,$3,'phone',$4,'connecting') ON CONFLICT(room_name) WHERE room_name IS NOT NULL DO NOTHING",
-            [randomUUID(), "电话睡眠调研", JSON.stringify(template), b.room],
+            [randomUUID(), "电话自由对话", JSON.stringify(template), b.room],
           );
       }
       const found = await db.query(

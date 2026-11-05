@@ -24,7 +24,7 @@ if (!/^[a-z0-9-]+$/.test(stage || '') || !/^[12]$/.test(repeat || '')) throw Err
   console.log(JSON.stringify({ready:line.dial_enabled,checks:line.checks}));
   if(!line.dial_enabled)throw Error('Line unavailable; no call made');
   if(line.caller!=='13660199577' || line.recipient!=='19221659824')throw Error('Configured phone pair changed; inspect before dialing');
-  const request={requestId:crypto.randomUUID(),number:line.recipient,sim:2,template:'sleep-v1',consent:true,title:`时延测试 ${stage} 第${repeat}通`};
+  const request={requestId:crypto.randomUUID(),number:line.recipient,sim:2,template:'free-chat-v1',consent:true,title:`时延测试 ${stage} 第${repeat}通`};
   fs.writeFileSync(prefix+'.request.json',JSON.stringify({stage,repeat,request,at:new Date().toISOString()},null,2),{mode:0o600,flag:'wx'});
   const result=await api('phone-dial',request);
   console.log('Submitted '+result.id);

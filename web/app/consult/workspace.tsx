@@ -28,6 +28,7 @@ type Consultation = {
   risks: { text: string; source: string }[];
   report?: { summary: string; next_steps: string[]; limitations: string };
   lease_until?: string;
+  template?: { id: string; title: string; fields: Record<string, string> };
 };
 type Speech = {
   configured: boolean;
@@ -35,7 +36,7 @@ type Speech = {
   asr_test?: { ok: boolean; at: string };
   tts_test?: { ok: boolean; at: string };
 };
-const fields: Record<string, string> = {
+const legacyFields: Record<string, string> = {
   schedule: "作息时间",
   onset: "入睡情况",
   awakenings: "夜间醒来",
@@ -67,7 +68,7 @@ export default function Workspace() {
   const [list, setList] = useState<Consultation[]>([]),
     [current, setCurrent] = useState<Consultation | null>(null),
     [text, setText] = useState(""),
-    [title, setTitle] = useState("睡眠与生活习惯咨询"),
+    [title, setTitle] = useState("自由对话测试"),
     [consent, setConsent] = useState(false);
   const [speech, setSpeech] = useState<Speech>({
       configured: false,
@@ -86,6 +87,7 @@ export default function Workspace() {
     requestId: string;
   } | null>(null);
   const [mode, setMode] = useState<"text" | "voice">("voice");
+  const fields = current?.template?.fields || (current?.template?.id === "free-chat-v1" ? {} : legacyFields);
   async function refreshList() {
     setList(await api("sessions"));
   }
@@ -251,7 +253,7 @@ export default function Workspace() {
         <a href="/consult" className="cw-brand">
           PERSONA<span>咨询工作台</span>
         </a>
-        <span className="cw-tag">实时语音 / 文字 · 睡眠调研</span>
+        <span className="cw-tag">实时语音 / 文字 · 自由对话</span>
         {logged && (
           <button
             className="cw-quiet"
@@ -350,7 +352,7 @@ export default function Workspace() {
                 </div>
                 <div className="cw-grid">
                   <section>
-                    <h2>新建睡眠调研</h2>
+                    <h2>新建自由对话</h2>
                     <label>
                       咨询方式
                       <select
@@ -611,7 +613,7 @@ export default function Workspace() {
                 </div>
                 <div className="cw-grid">
                   <section>
-                    <h2>睡眠调研报告</h2>
+                    <h2>{current.template?.id === "free-chat-v1" ? "自由对话摘要" : "咨询报告"}</h2>
                     {current.report_status === "ready" && current.report ? (
                       <>
                         <p>{current.report.summary}</p>

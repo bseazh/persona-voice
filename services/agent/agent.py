@@ -92,7 +92,7 @@ async def persona_voice(ctx: JobContext) -> None:
     if controller:controller.attach()
     await session.start(agent=ConsultationAssistant(controller) if controller else PersonaAssistant(), room=ctx.room)
     session.generate_reply(
-        instructions="请介绍你是AI小禾，进行非诊断的睡眠习惯调研，会保存文字转录并生成报告，询问对方是否方便并同意开始。只说一两句话。" if consultation else "请用一句自然的中文主动打招呼，介绍你叫小禾，然后问用户今天想聊什么。"
+        instructions="请简短介绍你是AI小禾，可以自由聊天，会保存文字转录和对话摘要，询问是否方便开始。不要提出健康或睡眠调查。只说一两句话。" if consultation else "请用一句自然的中文主动打招呼，介绍你叫小禾，然后问用户今天想聊什么。"
     )
 
 

@@ -282,11 +282,11 @@ export async function POST(req: NextRequest) {
           b.requestId || "",
         ) ||
         !/^1[0-9]{10}$/.test(b.number || "") ||
-        b.template !== "sleep-v1" ||
+        b.template !== "free-chat-v1" ||
         b.consent !== true ||
         b.sim !== 2
       )
-        throw new UserError("请确认睡眠调研模板、接听号码、SIM 2 和拨号授权");
+        throw new UserError("请确认自由对话模板、接听号码、SIM 2 和拨号授权");
       const previous = (
         await db.query(
           "SELECT id,phone_number FROM consult_sessions WHERE id=$1 AND mode='phone'",
@@ -309,8 +309,8 @@ export async function POST(req: NextRequest) {
           [
             b.requestId,
             typeof b.title === "string"
-              ? b.title.trim().slice(0, 80) || "电话睡眠调研"
-              : "电话睡眠调研",
+              ? b.title.trim().slice(0, 80) || "电话自由对话"
+              : "电话自由对话",
             JSON.stringify(template),
             b.number,
           ],
@@ -419,12 +419,12 @@ export async function POST(req: NextRequest) {
       const title =
         typeof b.title === "string"
           ? b.title.trim().slice(0, 80)
-          : "睡眠习惯咨询";
+          : "自由对话测试";
       await db.query(
         "INSERT INTO consult_sessions(id,title,template,mode,room_name,voice_state) VALUES($1,$2,$3,$4,$5,$6)",
         [
           id,
-          title || "睡眠习惯咨询",
+          title || "自由对话测试",
           JSON.stringify(template),
           mode,
           mode === "voice" ? "consult-" + id : null,
@@ -432,7 +432,7 @@ export async function POST(req: NextRequest) {
         ],
       );
       await event(id, "session.created", {
-        template: "sleep-v1",
+        template: "free-chat-v1",
         mode,
         consent: true,
       });

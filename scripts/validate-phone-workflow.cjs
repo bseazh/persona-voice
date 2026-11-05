@@ -19,7 +19,7 @@ fs.mkdirSync(out,{recursive:true,mode:0o700});
   await page.screenshot({path:path.join(out,'preflight.png'),fullPage:true});
   const line=(await api('line')).data;
   console.log(JSON.stringify({phase:'preflight',ready:line.dial_enabled,checks:line.checks.map(c=>({id:c.id,ok:c.ok}))}));
-  const bad=await api('phone-dial',{requestId:crypto.randomUUID(),number:'13660199577',sim:1,template:'sleep-v1',consent:true});
+   const bad=await api('phone-dial',{requestId:crypto.randomUUID(),number:'13660199577',sim:1,template:'free-chat-v1',consent:true});
   if(bad.status!==400)throw Error('Wrong SIM was not rejected');
   if(process.argv.includes('--dial')) {
    if(!line.dial_enabled)throw Error('Line not ready; no call made');
