@@ -115,7 +115,7 @@ export async function phoneReadiness(route: VoiceRoute = "pipeline") {
     ...(route === "baidu-realtime" ? [{
       id: "realtime", label: "百度 Lite 实时语音",
       ok: !!speech.configured,
-      detail: "服务端凭据已配置；接通后请先说话，约一分钟测试由控制台结束",
+      detail: "服务端凭据已配置；接通后请先说话，可由控制台结束",
     }] : route === "doubao-realtime" ? [{
       id: "realtime", label: "豆包 Seeduplex 实时语音",
       ok: !!(speech.configured && speech.test?.ok),

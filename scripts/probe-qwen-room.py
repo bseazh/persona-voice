@@ -24,7 +24,7 @@ fixture=importlib.util.module_from_spec(spec);spec.loader.exec_module(fixture)
 async def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--ending',choices=['natural','operator'],default='natural')
-    parser.add_argument('--route',choices=['qwen-realtime','doubao-realtime','pipeline-mimo','pipeline-mimo-all'],default='qwen-realtime')
+    parser.add_argument('--route',choices=['qwen-realtime','doubao-realtime','pipeline-mimo','pipeline-mimo-all','baidu-realtime'],default='qwen-realtime')
     parser.add_argument('--followup',action='store_true',help='Add a second real audio question before ending')
     args=parser.parse_args()
     origin='https://phone.hehaizhao.site'
@@ -78,7 +78,7 @@ async def main():
                 # The feeder continuously supplies silence, so waiting for an
                 # entirely empty source would never finish. Its queue is 100ms.
                 await asyncio.sleep(.15)
-            await until(lambda:state['audio_frames']>0 and state['agent']=='listening')
+            await until(lambda:state['agent']=='listening' and (args.route=='baidu-realtime' or state['audio_frames']>0))
             await send(question)
             for _ in range(60):
                 current=await request('session?id='+sid)

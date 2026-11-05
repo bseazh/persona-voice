@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
         );
       const speech = await routeSpeechSettings(voiceRoute(found.rows[0].voice_route), true);
       if (
-        !speech.key ||
+        (found.rows[0].voice_route !== "baidu-realtime" && !speech.key) ||
         !speechReady(speech, voiceRoute(found.rows[0].voice_route))
       )
         return NextResponse.json(
