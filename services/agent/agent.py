@@ -62,6 +62,7 @@ async def persona_voice(ctx: JobContext) -> None:
     journal=VoiceJournal(ctx.room.name) if consultation else None
     speech={}
     route='pipeline'
+    business_instructions=None
     if journal:
         try:
             consultation_id = None
@@ -71,6 +72,7 @@ async def persona_voice(ctx: JobContext) -> None:
             configuration=await journal.start(consultation_id)
             speech=configuration['speech']
             route=configuration.get('voice_route','pipeline')
+            business_instructions=configuration.get('business_instructions')
         except Exception:
             await journal.close()
             raise
@@ -129,12 +131,12 @@ async def persona_voice(ctx: JobContext) -> None:
     if controller:
         controller.voice_route = route
         controller.attach()
-    assistant=RealtimeAssistant() if route in ('qwen-realtime','doubao-realtime','baidu-realtime') else ConsultationAssistant(controller) if controller else PersonaAssistant()
+    assistant=RealtimeAssistant(business_instructions) if route in ('qwen-realtime','doubao-realtime','baidu-realtime') else ConsultationAssistant(controller,business_instructions) if controller else PersonaAssistant()
     await session.start(agent=assistant, room=ctx.room)
     if route == 'baidu-realtime':
         return  # Lite starts from real user audio; do not issue unsupported response.create.
     session.generate_reply(
-        instructions="请简短介绍你是AI小禾，可以自由聊天，会保存文字转录和对话摘要，询问是否方便开始。不要提出健康或睡眠调查。只说一两句话。" if consultation else "请用一句自然的中文主动打招呼，介绍你叫小禾，然后问用户今天想聊什么。"
+        instructions="根据采购任务，用一两句话说明AI身份、采购沟通目的和文字保存用途，询问现在是否方便。不要直接朗读问题清单。" if business_instructions else "请简短介绍你是AI小禾，可以自由聊天，会保存文字转录和对话摘要，询问是否方便开始。不要提出健康或睡眠调查。只说一两句话。" if consultation else "请用一句自然的中文主动打招呼，介绍你叫小禾，然后问用户今天想聊什么。"
     )
 
 

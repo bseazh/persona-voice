@@ -10,8 +10,8 @@ from realtime_control import explicit_end
 
 
 class RealtimeAssistant(Agent):
-    def __init__(self):
-        instructions=INSTRUCTIONS.split('对方要求结束')[0]
+    def __init__(self, instructions=None):
+        instructions=instructions or INSTRUCTIONS.split('对方要求结束')[0]
         instructions+='\n开场说明只说一次；用户开始提问后直接回答问题，不再重复自我介绍或征求开始。用户明确说再见、挂断或聊到这里时，系统会负责告别和结束，请不要重复告别。不要声称已经挂断电话。'
         super().__init__(instructions=instructions)
 

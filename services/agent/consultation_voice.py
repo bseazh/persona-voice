@@ -121,8 +121,10 @@ class VoiceJournal:
 
 
 class ConsultationAssistant(Agent):
-    def __init__(self, controller):
-        super().__init__(instructions=INSTRUCTIONS)
+    def __init__(self, controller, instructions=None):
+        if instructions:
+            instructions += '\n对方明确要求结束或拒绝时必须调用finish_consultation，结束语只放farewell参数，不同时输出普通告别。不得声称已成交、已下单。'
+        super().__init__(instructions=instructions or INSTRUCTIONS)
         self.controller=controller
 
     async def llm_node(self, chat_ctx, tools, model_settings):

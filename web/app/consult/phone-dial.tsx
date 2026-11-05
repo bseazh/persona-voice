@@ -1,5 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import ProjectForm from "./project-form";
+import { procurementId } from "@/lib/procurement";
 type Line = {
   voice_route: string;
   caller: string;
@@ -34,6 +36,8 @@ export default function PhoneDial({
     [number, setNumber] = useState(""),
     [title, setTitle] = useState("电话自由对话");
   const [voiceRoute, setVoiceRoute] = useState("pipeline");
+  const [businessTemplate,setBusinessTemplate]=useState(procurementId);
+  const [project,setProject]=useState<Record<string,string>>({});
   const [consent, setConsent] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -42,6 +46,8 @@ export default function PhoneDial({
     number: string;
     title: string;
     voiceRoute: string;
+    template: string;
+    project: Record<string,string>;
   } | null>(null);
   const initializedRecipient = useRef(false);
   const refresh = useCallback(async () => {
@@ -73,12 +79,11 @@ export default function PhoneDial({
       return;
     setBusy(true);
     setError("");
-    pending.current ??= { requestId: crypto.randomUUID(), number, title, voiceRoute };
+    pending.current ??= { requestId: crypto.randomUUID(), number, title, voiceRoute,template:businessTemplate,project:{...project} };
     const payload = pending.current;
     try {
       const result = await request("phone-dial", {
         ...payload,
-        template: "free-chat-v1",
         sim: 2,
         consent,
       });
@@ -114,10 +119,12 @@ export default function PhoneDial({
           </label>
           <label>
             咨询模板
-            <select disabled={busy}>
+            <select value={businessTemplate} onChange={e=>setBusinessTemplate(e.target.value)} disabled={busy || !!pending.current}>
+              <option value={procurementId}>采购供应商沟通 v1</option>
               <option value="free-chat-v1">自由对话测试 v1</option>
             </select>
           </label>
+          {businessTemplate===procurementId && <ProjectForm value={project} onChange={setProject} disabled={busy || !!pending.current}/>}
           <small>目前开放一个已验证模板；内容由模型根据真实回答生成。</small>
           <label>
             咨询标题

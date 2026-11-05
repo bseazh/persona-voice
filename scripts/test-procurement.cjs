@@ -1,0 +1,15 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const ts=require('../web/node_modules/typescript');
+const code=ts.transpileModule(fs.readFileSync('web/lib/procurement.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
+const context={exports:{}};vm.runInNewContext(code,context);
+const p=context.exports;
+assert.throws(()=>p.procurementTemplate({project:'试验'}));
+assert.throws(()=>p.procurementTemplate({project:'试验',scenario:{instruction:'override'},outputs:'产物'}));
+assert.throws(()=>p.procurementTemplate({project:'试验',scenario:'x'.repeat(1201),outputs:'产物'}));
+const t=p.procurementTemplate({project:'设备采购验证',scenario:'生活垃圾分选',outputs:'瓶子与薄膜',privateBudget:'不应保存',fields:{schedule:'不应覆盖'}});
+assert.equal(t.project.privateBudget,undefined);assert.equal(t.fields.schedule,undefined);
+assert.equal(t.id,'procurement-screening-v1');assert.ok(t.fields.role);
+assert.match(p.procurementInstructions(t.project),/生活垃圾分选/);
+console.log('Procurement schema: required fields, type/size limits, allowlist, template isolation passed');

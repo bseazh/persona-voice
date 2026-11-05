@@ -5,6 +5,8 @@ import VoiceRoom from "./voice-room";
 import PhoneDial from "./phone-dial";
 import Diagnostics from "./diagnostics";
 import DoubaoSettings from "./doubao-settings";
+import ProjectForm from "./project-form";
+import { procurementId, projectFields } from "@/lib/procurement";
 import "./workspace.css";
 type Message = {
   id: string;
@@ -30,7 +32,7 @@ type Consultation = {
   risks: { text: string; source: string }[];
   report?: { summary: string; next_steps: string[]; limitations: string };
   lease_until?: string;
-  template?: { id: string; title: string; fields: Record<string, string> };
+  template?: { id: string; title: string; fields: Record<string, string>; project?: Record<string,string> };
 };
 type Speech = {
   configured: boolean;
@@ -90,6 +92,8 @@ export default function Workspace() {
   } | null>(null);
   const [mode, setMode] = useState<"text" | "voice">("voice");
   const [voiceRoute, setVoiceRoute] = useState("pipeline");
+  const [businessTemplate,setBusinessTemplate]=useState(procurementId);
+  const [project,setProject]=useState<Record<string,string>>({});
   const fields = current?.template?.fields || (current?.template?.id === "free-chat-v1" ? {} : legacyFields);
   async function refreshList() {
     setList(await api("sessions"));
@@ -152,7 +156,7 @@ export default function Workspace() {
   }
   async function start() {
     await run(async () => {
-      const c = await api("create", { title, consent, mode, voiceRoute });
+      const c = await api("create", { title:businessTemplate===procurementId ? project.project || title : title, consent, mode, voiceRoute, template:businessTemplate, project });
       await load(c.id);
       await refreshList();
       if (mode === "voice") return;
@@ -344,6 +348,7 @@ export default function Workspace() {
                 {notice}
               </div>
             )}
+            {current?.template?.id===procurementId && ["chat","result"].includes(page) && <details><summary>本次采购项目需求（已保存）</summary>{Object.entries(projectFields).map(([key,label])=><p key={key}><strong>{label}：</strong>{current.template?.project?.[key] || "待确认"}</p>)}<small>项目需求不等于供应商承诺。语音模式的结构化字段在结束报告时统一核验提取。</small></details>}
             {page === "sessions" && (
               <>
                 <div className="cw-heading">
@@ -355,7 +360,11 @@ export default function Workspace() {
                 </div>
                 <div className="cw-grid">
                   <section>
-                    <h2>新建自由对话</h2>
+                    <h2>新建沟通任务</h2>
+                    <label>业务模板<select value={businessTemplate} onChange={e=>setBusinessTemplate(e.target.value)}>
+                      <option value={procurementId}>采购供应商沟通</option><option value="free-chat-v1">自由对话测试</option>
+                    </select></label>
+                    {businessTemplate===procurementId && <ProjectForm value={project} onChange={setProject} disabled={busy}/>}
                     <label>
                       咨询方式
                       <select
@@ -378,7 +387,7 @@ export default function Workspace() {
                         <option value="baidu-realtime">新路线 · 百度 Lite（请先说话）</option>
                       </select>
                     </label>}
-                    <p>自由选择话题，支持连续问答、插话和随时结束。三条语音路线独立选择。</p>
+                    <p>{businessTemplate===procurementId ? "顺着供应商回答自然追问，确认供货范围、能力与待办。语音请选择原路线或 Qwen 全双工。文字模式可先验证提问与信息采集。" : "自由选择话题，支持连续问答、插话和随时结束。"}</p>
                     <label>
                       咨询标题
                       <input
@@ -388,7 +397,7 @@ export default function Workspace() {
                       />
                     </label>
                     <div className="cw-disclaimer">
-                      本服务是生活习惯调研，不是医疗诊断或治疗。请勿输入身份证、住址等身份信息。文字会保存在服务器用于生成报告，可在结果页删除；不会录音。明显不适请寻求专业医疗帮助。
+                      本次文字会保存在服务器用于生成报告，可在结果页删除；不保存通话录音。请勿填写无关个人隐私。供应商口述、技术与商务条件需要人工核验，AI 不代表采购批准。
                     </div>
                     <label className="cw-check">
                       <input

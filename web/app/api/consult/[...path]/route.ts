@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { procurementId, procurementTemplate } from "@/lib/procurement";
 import {
   AccessToken,
   RoomConfiguration,
@@ -326,24 +327,29 @@ export async function POST(req: NextRequest) {
     }
     if (path === "phone-dial") {
       const route = voiceRoute(b.voiceRoute);
+      let selected = template as object;
+      if (b.template === procurementId) {
+        try { selected = procurementTemplate(b.project); } catch(e) { throw new UserError((e as Error).message); }
+        if (!["pipeline","qwen-realtime"].includes(route)) throw new UserError("采购模板目前支持千问流水线或 Qwen 全双工");
+      }
       if (
         !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(
           b.requestId || "",
         ) ||
         !/^1[0-9]{10}$/.test(b.number || "") ||
-        b.template !== "free-chat-v1" ||
+        !["free-chat-v1", procurementId].includes(b.template) ||
         b.consent !== true ||
         b.sim !== 2
       )
         throw new UserError("请确认自由对话模板、接听号码、SIM 2 和拨号授权");
       const previous = (
         await db.query(
-          "SELECT id,phone_number,voice_route FROM consult_sessions WHERE id=$1 AND mode='phone'",
+          "SELECT id,phone_number,voice_route,template FROM consult_sessions WHERE id=$1 AND mode='phone'",
           [b.requestId],
         )
       ).rows[0];
       if (previous) {
-        if (previous.phone_number !== b.number || previous.voice_route !== route)
+        if (previous.phone_number !== b.number || previous.voice_route !== route || previous.template?.id !== b.template || (b.template === procurementId && JSON.stringify(procurementTemplate(previous.template.project)) !== JSON.stringify(selected)))
           throw new UserError("请求编号与号码不一致", 409);
         return json({ id: previous.id });
       }
@@ -360,7 +366,7 @@ export async function POST(req: NextRequest) {
             typeof b.title === "string"
               ? b.title.trim().slice(0, 80) || "电话自由对话"
               : "电话自由对话",
-            JSON.stringify(template),
+            JSON.stringify(selected),
             b.number,
             route,
           ],
@@ -369,11 +375,11 @@ export async function POST(req: NextRequest) {
         if ((e as { code?: string }).code === "23505") {
           const same = (
             await db.query(
-              "SELECT id,phone_number,voice_route FROM consult_sessions WHERE id=$1",
+              "SELECT id,phone_number,voice_route,template FROM consult_sessions WHERE id=$1",
               [b.requestId],
             )
           ).rows[0];
-          if (same && same.phone_number === b.number && same.voice_route === route)
+          if (same && same.phone_number === b.number && same.voice_route === route && same.template?.id === b.template && (b.template !== procurementId || JSON.stringify(procurementTemplate(same.template.project)) === JSON.stringify(selected)))
             return json({ id: same.id });
           throw new UserError("已有未结束的电话咨询，请先查看该咨询", 409);
         }
@@ -463,6 +469,12 @@ export async function POST(req: NextRequest) {
       const id = randomUUID();
       const mode = b.mode === "voice" ? "voice" : "text";
       const route = voiceRoute(b.voiceRoute);
+      if (b.template && !["free-chat-v1",procurementId].includes(b.template)) throw new UserError("未知模板");
+      let selected = template as object;
+      if (b.template === procurementId) {
+        try { selected = procurementTemplate(b.project); } catch(e) { throw new UserError((e as Error).message); }
+        if (mode === "voice" && !["pipeline","qwen-realtime"].includes(route)) throw new UserError("采购模板目前支持千问流水线或 Qwen 全双工");
+      }
       if (mode === "voice") {
         const speech = await routeSpeechSettings(route);
         if (!speechReady(speech, route))
@@ -477,7 +489,7 @@ export async function POST(req: NextRequest) {
         [
           id,
           title || "自由对话测试",
-          JSON.stringify(template),
+          JSON.stringify(selected),
           mode,
           mode === "voice" ? "consult-" + id : null,
           mode === "voice" ? "ready" : null,
@@ -485,7 +497,7 @@ export async function POST(req: NextRequest) {
         ],
       );
       await event(id, "session.created", {
-        template: "free-chat-v1",
+        template: b.template || "free-chat-v1",
         mode,
         consent: true,
         voice_route: route,

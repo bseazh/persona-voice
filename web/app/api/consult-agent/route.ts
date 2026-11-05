@@ -10,6 +10,7 @@ import {
   voiceRoute,
 } from "@/lib/consultation";
 import { phoneRequest } from "@/lib/phone";
+import { procurementId, procurementInstructions } from "@/lib/procurement";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 let initialized: Promise<void> | undefined;
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
           );
       }
       const found = await db.query(
-        "UPDATE consult_sessions SET voice_state='active' WHERE room_name=$1 AND status='active' AND mode IN ('voice','phone') RETURNING id,title,mode,voice_route",
+        "UPDATE consult_sessions SET voice_state='active' WHERE room_name=$1 AND status='active' AND mode IN ('voice','phone') RETURNING id,title,mode,voice_route,template",
         [b.room],
       );
       if (!found.rowCount)
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           ...found.rows[0],
+          business_instructions: found.rows[0].template?.id === procurementId ? procurementInstructions(found.rows[0].template.project) : null,
           speech: { key: speech.key, workspace: speech.workspace, voice: speech.voice },
         },
         { headers: { "Cache-Control": "no-store" } },
