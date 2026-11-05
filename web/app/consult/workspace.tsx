@@ -375,7 +375,7 @@ export default function Workspace() {
                         <option value="doubao-realtime">新路线 · 豆包 Seeduplex 全双工（待验收）</option>
                       </select>
                     </label>}
-                    <p>自由选择话题，支持连续问答、插话和随时结束。两条语音路线独立选择。</p>
+                    <p>自由选择话题，支持连续问答、插话和随时结束。三条语音路线独立选择。</p>
                     <label>
                       咨询标题
                       <input
