@@ -7,7 +7,9 @@ const base = 'https://phone.hehaizhao.site/api/consult/';
 const stage = process.argv[2];
 const repeat = process.argv[3];
 const voiceRoute = process.argv[4] || 'pipeline';
-if (!['pipeline','pipeline-mimo','pipeline-mimo-all','qwen-realtime','doubao-realtime'].includes(voiceRoute)) throw Error('Unknown voice route');
+const durationSeconds = process.argv[5] === undefined ? null : Number(process.argv[5]);
+if (durationSeconds !== null && (!Number.isInteger(durationSeconds) || durationSeconds < 30 || durationSeconds > 180)) throw Error('Duration must be 30..180 seconds');
+if (!['pipeline','pipeline-mimo','pipeline-mimo-all','qwen-realtime','doubao-realtime','baidu-realtime'].includes(voiceRoute)) throw Error('Unknown voice route');
 if (!/^[a-z0-9-]+$/.test(stage || '') || !/^[12]$/.test(repeat || '')) throw Error('Usage: node scripts/benchmark-phone.cjs baseline 1');
 (async () => {
   const dir = path.join(root, 'BigApple输出', 'latency-benchmark');
@@ -29,21 +31,32 @@ if (!/^[a-z0-9-]+$/.test(stage || '') || !/^[12]$/.test(repeat || '')) throw Err
   if(!line.dial_enabled)throw Error('Line unavailable; no call made');
   if(line.caller!=='13660199577' || line.recipient!=='19221659824')throw Error('Configured phone pair changed; inspect before dialing');
   const request={requestId:crypto.randomUUID(),number:line.recipient,sim:2,template:'free-chat-v1',consent:true,voiceRoute,title:`时延测试 ${stage} 第${repeat}通`};
-  fs.writeFileSync(prefix+'.request.json',JSON.stringify({stage,repeat,request,at:new Date().toISOString()},null,2),{mode:0o600,flag:'wx'});
+  fs.writeFileSync(prefix+'.request.json',JSON.stringify({stage,repeat,request,durationSeconds,at:new Date().toISOString()},null,2),{mode:0o600,flag:'wx'});
   const result=await api('phone-dial',request);
   console.log('Submitted '+result.id);
   let last='';
-  for(let i=0;i<55;i++) {
+  let connectedAt=null, timedHangup=false;
+  for(let i=0;i<(durationSeconds ? 160 : 55);i++) {
     const s=await api('session?id='+result.id);
     const status=JSON.stringify({status:s.status,phone:s.phone_state,messages:s.messages?.length,reason:s.reason});
     if(status!==last){console.log(status);last=status;}
+    if(durationSeconds && s.phone_state==='connected' && connectedAt===null) {
+      const events=await api('events?id='+result.id);
+      connectedAt=events.find(e=>e.kind==='phone.state' && e.payload.state==='connected')?.payload.at || Date.now()/1000;
+      console.log('Timed call: '+durationSeconds+' seconds from connected event');
+    }
+    if(durationSeconds && connectedAt!==null && !timedHangup && !['ended','failed'].includes(s.phone_state) && Date.now()/1000-connectedAt>=durationSeconds) {
+      timedHangup=true;
+      await api('phone-hangup',{id:result.id});
+      console.log('Requested timed hangup for this call ID');
+    }
     if(s.status==='closed') {
       await new Promise(r=>setTimeout(r,3000));
       const events=await api('events?id='+result.id);
-      fs.writeFileSync(prefix+'.json',JSON.stringify({stage,repeat,revision,id:result.id,session:s,events},null,2),{mode:0o600});
+      fs.writeFileSync(prefix+'.json',JSON.stringify({stage,repeat,revision,durationSeconds,timedHangup,id:result.id,session:s,events},null,2),{mode:0o600});
       console.log('Saved '+prefix+'.json');return;
     }
-    await new Promise(r=>setTimeout(r,5000));
+    await new Promise(r=>setTimeout(r,durationSeconds ? 2000 : 5000));
   }
   throw Error('Observation timed out; inspect existing ID before further action');
 })().catch(e=>{console.error(e.message);process.exitCode=1;});
