@@ -177,8 +177,9 @@ class VoiceController:
             'tts_mode': tts_mode(),
             'turn_profile': turn_profile(), 'transcription_timeout': 4.0,
             'preemptive_generation': preflight_enabled(), 'preemptive_tts': False,
-            'preflight_stability_ms': 300, 'preflight_min_chars': 6,
-            'preflight_max_candidates': 2, 'preemptive_max_speech_duration': 10.0})
+            'preflight_mode': 'vad-gated-v2',
+            'preflight_stability_ms': 150, 'preflight_min_chars': 6,
+            'preflight_max_candidates': 1, 'preemptive_max_speech_duration': 10.0})
         @self.session.on('speech_created')
         def speech_created(event):
             handle = event.speech_handle

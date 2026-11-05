@@ -66,8 +66,9 @@ async def persona_voice(ctx: JobContext) -> None:
             await journal.close()
             raise
     profile = turn_profile()
+    speech_to_text = QwenStreamingSTT(audit=journal.emit if journal else None, **speech) if consultation or os.getenv('ASR_MODE', 'streaming') == 'streaming' else QwenSTT()
     session = AgentSession(
-        stt=QwenStreamingSTT(audit=journal.emit if journal else None, **speech) if consultation or os.getenv('ASR_MODE', 'streaming') == 'streaming' else QwenSTT(),
+        stt=speech_to_text,
         llm=openai.LLM.with_deepseek(
             api_key=required("DEEPSEEK_API_KEY"),
             model=os.getenv("LLM_MODEL", "deepseek-chat"),
@@ -90,6 +91,13 @@ async def persona_voice(ctx: JobContext) -> None:
                                    "max_retries": 2, "max_speech_duration": 10.0},
         ),
     )
+
+    if isinstance(speech_to_text, QwenStreamingSTT):
+        @session.on('user_state_changed')
+        def user_state_changed(event):
+            # With turn_detection='vad', these transitions come from VAD hooks.
+            if event.new_state in ('speaking', 'listening'):
+                speech_to_text.set_user_speaking(event.new_state == 'speaking')
 
     attach_phone_transcript(session, ctx.room.name)
     controller=VoiceController(ctx,session,journal) if journal else None

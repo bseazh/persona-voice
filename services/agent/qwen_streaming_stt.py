@@ -17,10 +17,19 @@ class QwenStreamingSTT(QwenSTT):
     def __init__(self, *, audit=None, **kwargs):
         super().__init__(**kwargs)
         self.audit = audit
+        self._preflights = set()
+        self._speaking = None
         self._capabilities = stt.STTCapabilities(streaming=True, interim_results=True)
 
     def stream(self, *, language=None, conn_options=DEFAULT_API_CONNECT_OPTIONS):
         return QwenStream(stt=self, conn_options=conn_options, sample_rate=16000)
+
+    def set_user_speaking(self, speaking):
+        self._speaking = speaking
+        for preflight in tuple(self._preflights):
+            preflight.set_speaking(speaking)
+        if self.audit:
+            self.audit('asr_vad_boundary', {'at': time.time(), 'speaking': speaking})
 
 
 class QwenStream(stt.RecognizeStream):
@@ -40,6 +49,9 @@ class QwenStream(stt.RecognizeStream):
                 self._stt.audit('asr_preflight', {'at': time.time(), 'characters': len(event.alternatives[0].text),
                     'request_id': event.request_id, 'provisional': True})
         preflight = StablePreflight(emit_preflight)
+        self._stt._preflights.add(preflight)
+        if self._stt._speaking is True:
+            preflight.set_speaking(True)
         try:
             await asyncio.to_thread(session.start)
             logger.info('qwen_streaming_connected', extra={'request_id': session.request_id})
@@ -96,6 +108,7 @@ class QwenStream(stt.RecognizeStream):
             raise APIConnectionError(f'Qwen streaming ASR failed ({type(error).__name__})') from None
         finally:
             preflight.close()
+            self._stt._preflights.discard(preflight)
             await asyncio.to_thread(session.close)
             for task in tasks:
                 task.cancel()

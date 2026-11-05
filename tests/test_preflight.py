@@ -11,6 +11,8 @@ class PreflightTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.events = []
         self.hints = StablePreflight(self.events.append, delay=.02, min_chars=2)
+        self.hints.set_speaking(True)
+        self.hints.set_speaking(False)
 
     async def asyncTearDown(self):
         self.hints.close()
@@ -42,11 +44,60 @@ class PreflightTests(unittest.IsolatedAsyncioTestCase):
         for text in ['一', '第一', '第二', '第三']:
             self.hints.update(text, text)
             await asyncio.sleep(.04)
-        self.assertEqual(self.events, ['第一', '第二'])
+        self.assertEqual(self.events, ['第一'])
         self.hints.final()
+        self.hints.set_speaking(True)
+        self.hints.set_speaking(False)
         self.hints.update('下一句', 'next')
         await asyncio.sleep(.04)
-        self.assertEqual(self.events, ['第一', '第二', 'next'])
+        self.assertEqual(self.events, ['第一', 'next'])
+
+    async def test_no_hint_while_speaking_and_latest_text_used_after_stop(self):
+        self.hints.set_speaking(True)
+        for text in ['早期片段', '接着补充', '最终完整问题']:
+            self.hints.update(text, text)
+            await asyncio.sleep(.04)
+        self.assertEqual(self.events, [])
+        self.hints.set_speaking(False)
+        await asyncio.sleep(.01)
+        self.assertEqual(self.events, ['最终完整问题'])
+
+    async def test_resume_cancels_pending_hint_without_resetting_budget(self):
+        self.hints.update('尚未稳定', 'old')
+        self.hints.set_speaking(True)
+        await asyncio.sleep(.04)
+        self.assertEqual(self.events, [])
+        self.hints.update('继续说完', 'new')
+        self.hints.set_speaking(False)
+        await asyncio.sleep(.04)
+        self.hints.set_speaking(True)
+        self.hints.update('再次补充', 'extra')
+        self.hints.set_speaking(False)
+        await asyncio.sleep(.04)
+        self.assertEqual(self.events, ['new'])
+
+    async def test_no_hint_without_observed_speech_cycle_or_after_final(self):
+        other = StablePreflight(self.events.append, delay=.01)
+        try:
+            other.set_speaking(False)
+            other.update('初始静音不能触发', 'initial')
+            await asyncio.sleep(.03)
+            self.assertEqual(self.events, [])
+            other.set_speaking(True)
+            other.set_speaking(False)
+            other.final()
+            other.update('最终结果之后到达', 'late')
+            await asyncio.sleep(.03)
+            self.assertEqual(self.events, [])
+        finally:
+            other.close()
+
+    async def test_updated_text_during_silence_restarts_stability_window(self):
+        self.hints.update('原始内容', 'old')
+        await asyncio.sleep(.01)
+        self.hints.update('最新内容', 'new')
+        await asyncio.sleep(.04)
+        self.assertEqual(self.events, ['new'])
 
     async def test_optional_hint_failure_is_contained(self):
         def fail(value):
