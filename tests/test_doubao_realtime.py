@@ -105,6 +105,26 @@ class AdapterTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(self.session.failed)
         self.assertLessEqual(self.session.audio.qsize(),100)
 
+    async def test_continuous_input_does_not_accumulate_send_overhead(self):
+        sent=[]
+        async def send(kind,**fields):
+            if kind=='input_audio_buffer.append':
+                await asyncio.sleep(.008)
+                sent.append(time.monotonic())
+        self.session.conn.send=send
+        task=asyncio.create_task(self.session.pump())
+        start=time.monotonic()
+        try:
+            for n in range(150):
+                await asyncio.sleep(max(0,start+n*.02-time.monotonic()))
+                self.session.audio.put_nowait(b'\0'*640)
+            # Old completion-relative pacing leaves ~40 frames after 3s.
+            self.assertLess(self.session.audio.qsize(),10)
+            await asyncio.sleep(.2)
+            self.assertEqual(len(sent),150)
+        finally:
+            task.cancel();await asyncio.gather(task,return_exceptions=True)
+
 
 class Sink(io.AudioOutput):
     def __init__(self):

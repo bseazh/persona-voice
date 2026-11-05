@@ -270,6 +270,10 @@ class DoubaoSession(llm.RealtimeSession):
     async def pump(self):
         muted = True
         next_send = time.monotonic()
+        last_audit = next_send
+        sent = 0
+        peak_queue = 0
+        max_send_seconds = 0.0
         while True:
             try:
                 packet = await asyncio.wait_for(self.audio.get(), .15)
@@ -284,8 +288,22 @@ class DoubaoSession(llm.RealtimeSession):
                 muted = False
                 next_send = time.monotonic()
             await asyncio.sleep(max(0, next_send-time.monotonic()))
+            send_started = time.monotonic()
             await self.conn.send('input_audio_buffer.append', audio=base64.b64encode(packet).decode())
-            next_send = time.monotonic() + .02
+            now = time.monotonic()
+            # Advance the audio clock, not send-completion time: adding 20ms
+            # after every send accumulated network/scheduler overhead forever.
+            # Limit catch-up to 40ms after stalls; retain bounded backpressure.
+            next_send = max(next_send + .02, now - .04)
+            sent += 1
+            peak_queue = max(peak_queue, self.audio.qsize())
+            max_send_seconds = max(max_send_seconds, now-send_started)
+            if now-last_audit >= 5:
+                self.audit('input_pacing', sent_frames=sent, queue_frames=self.audio.qsize(),
+                    peak_queue_frames=peak_queue, max_send_seconds=round(max_send_seconds, 6))
+                last_audit = now
+                peak_queue = self.audio.qsize()
+                max_send_seconds = 0.0
 
     async def run(self):
         try:
