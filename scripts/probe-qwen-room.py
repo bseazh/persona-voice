@@ -24,6 +24,7 @@ fixture=importlib.util.module_from_spec(spec);spec.loader.exec_module(fixture)
 async def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--ending',choices=['natural','operator'],default='natural')
+    parser.add_argument('--route',choices=['qwen-realtime','pipeline-mimo'],default='qwen-realtime')
     args=parser.parse_args()
     origin='https://phone.hehaizhao.site'
     question=await fixture.fixture('请告诉我一天有多少个小时。')
@@ -54,8 +55,8 @@ async def main():
                 if response.status>=400:raise RuntimeError(f'workspace_{path.split("?")[0]}_{response.status}')
                 return await response.json()
         await request('login',{'password':os.environ['CONSULTATION_ADMIN_PASSWORD']})
-        session=await request('create',{'title':'[自动验收] Qwen全双工 '+args.ending,
-            'mode':'voice','voiceRoute':'qwen-realtime','consent':True})
+        session=await request('create',{'title':'[自动验收] '+args.route+' '+args.ending,
+            'mode':'voice','voiceRoute':args.route,'consent':True})
         sid=session['id'];report['session_id']=sid
         try:
             details=await request('voice-token',{'id':sid})
@@ -98,7 +99,9 @@ async def main():
                 'farewell_count':sum(e['kind']=='voice.farewell_played' for e in events),
                 'error_kinds':[e['kind'] for e in events if e['kind'] in ('voice.error','voice.farewell_failed')],
                 'room_release':[e['payload'] for e in events if e['kind']=='voice.room_release']})
-            report['ok']=current['status']=='closed' and current['voice_route']=='qwen-realtime' and report['farewell_count']==1 and not report['error_kinds'] and any(e.get('confirmed') for e in report['room_release'])
+            released = any(e.get('confirmed') for e in report['room_release']) if args.route == 'qwen-realtime' else state['disconnected']
+            report['benchmark_config']=[e['payload'] for e in events if e['kind']=='voice.benchmark_config']
+            report['ok']=current['status']=='closed' and current['voice_route']==args.route and report['farewell_count']==1 and not report['error_kinds'] and released
         except Exception as error:
             report.update(ok=False,error_type=type(error).__name__,error=str(error)[:200])
         finally:

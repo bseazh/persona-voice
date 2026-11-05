@@ -10,6 +10,7 @@ from livekit.plugins import openai, silero
 from qwen_stt import QwenSTT
 from qwen_streaming_stt import QwenStreamingSTT
 from qwen_tts import QwenTTS
+from mimo_tts import MiMoTTS
 from phone_transcript import attach_phone_transcript
 from consultation_voice import VoiceJournal, VoiceController, ConsultationAssistant
 from turn_profile import turn_profile
@@ -77,8 +78,10 @@ async def persona_voice(ctx: JobContext) -> None:
                if route=='doubao-realtime' else QwenRealtime(key=speech.get('key'),audit=journal.emit if journal else None))
         session=AgentSession(llm=model)
         ctx.add_shutdown_callback(model.aclose)
-    elif route=='pipeline':
+    elif route in ('pipeline', 'pipeline-mimo'):
         profile = turn_profile()
+        synthesis = MiMoTTS() if route == 'pipeline-mimo' else QwenTTS(**speech)
+        ctx.add_shutdown_callback(synthesis.aclose)
         speech_to_text = QwenStreamingSTT(audit=journal.emit if journal else None, **speech) if consultation or os.getenv('ASR_MODE', 'streaming') == 'streaming' else QwenSTT()
         session = AgentSession(
             stt=speech_to_text,
@@ -88,7 +91,7 @@ async def persona_voice(ctx: JobContext) -> None:
                 base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"),
                 temperature=0.6,
             ),
-            tts=QwenTTS(**speech),
+            tts=synthesis,
             vad=silero.VAD.load(
                 min_speech_duration=0.08,
                 min_silence_duration=profile['vad_silence'],
@@ -117,7 +120,9 @@ async def persona_voice(ctx: JobContext) -> None:
     attach_phone_transcript(session, ctx.room.name)
     controller=(RealtimeController(ctx,session,journal,model) if route in ('qwen-realtime','doubao-realtime')
                 else VoiceController(ctx,session,journal)) if journal else None
-    if controller:controller.attach()
+    if controller:
+        controller.voice_route = route
+        controller.attach()
     assistant=RealtimeAssistant() if route in ('qwen-realtime','doubao-realtime') else ConsultationAssistant(controller) if controller else PersonaAssistant()
     await session.start(agent=assistant, room=ctx.room)
     session.generate_reply(

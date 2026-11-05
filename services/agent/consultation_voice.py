@@ -167,7 +167,7 @@ class VoiceController:
         self.poll_task=None
 
     def benchmark_config(self):
-        return {'stage': os.getenv('VOICE_BENCHMARK_STAGE', turn_profile()['name']),
+        config = {'stage': os.getenv('VOICE_BENCHMARK_STAGE', turn_profile()['name']),
             'measurement_version': 1, 'clock': 'sdk_source_timestamps',
             'endpoint': 'agent_room_output_not_handset', 'template': 'free-chat-v1',
             'tts_provider': 'DashScope/Qwen',
@@ -180,6 +180,11 @@ class VoiceController:
             'preflight_mode': 'vad-gated-v2',
             'preflight_stability_ms': 150, 'preflight_min_chars': 6,
             'preflight_max_candidates': 1, 'preemptive_max_speech_duration': 10.0}
+        config['voice_route'] = getattr(self, 'voice_route', 'pipeline')
+        if config['voice_route'] == 'pipeline-mimo':
+            config.update(tts_provider='Xiaomi/MiMo', tts_model='mimo-v2.5-tts',
+                          tts_voice='mimo_default', tts_mode='sentence-input-sse-output')
+        return config
 
     def attach(self):
         self.journal.emit('benchmark_config', self.benchmark_config())

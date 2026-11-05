@@ -105,6 +105,7 @@ export default function PhoneDial({
             <select value={voiceRoute} disabled={busy || !!pending.current}
               onChange={(e) => { setLine(null); setVoiceRoute(e.target.value); }}>
               <option value="pipeline">原路线 · ASR + DeepSeek + TTS</option>
+              <option value="pipeline-mimo">新路线 · 千问 ASR + DeepSeek + MiMo TTS</option>
               <option value="qwen-realtime">新路线 · Qwen 原生全双工（试用）</option>
               <option value="doubao-realtime">新路线 · 豆包 Seeduplex 全双工（待验收）</option>
             </select>

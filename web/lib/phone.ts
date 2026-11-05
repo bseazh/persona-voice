@@ -128,9 +128,9 @@ export async function phoneReadiness(route: VoiceRoute = "pipeline") {
     },
     {
       id: "tts",
-      label: "千问 TTS",
-      ok: !!(speech.configured && speech.tts_test?.ok),
-      detail: "依据当前 Key 的最近合成测试",
+      label: route === "pipeline-mimo" ? "MiMo TTS" : "千问 TTS",
+      ok: route === "pipeline-mimo" ? !!process.env.MIMO_API_KEY : !!(speech.configured && speech.tts_test?.ok),
+      detail: route === "pipeline-mimo" ? "服务端 MiMo 凭据已配置；权限、额度与实时可用性在调用时验证" : "依据当前 Key 的最近合成测试",
     },
     {
       id: "llm",
