@@ -13,6 +13,7 @@ from qwen_tts import QwenTTS
 from phone_transcript import attach_phone_transcript
 from consultation_voice import VoiceJournal, VoiceController, ConsultationAssistant
 from turn_profile import turn_profile
+from preflight import preflight_enabled
 
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / ".env")
@@ -66,7 +67,7 @@ async def persona_voice(ctx: JobContext) -> None:
             raise
     profile = turn_profile()
     session = AgentSession(
-        stt=QwenStreamingSTT(**speech) if consultation or os.getenv('ASR_MODE', 'streaming') == 'streaming' else QwenSTT(),
+        stt=QwenStreamingSTT(audit=journal.emit if journal else None, **speech) if consultation or os.getenv('ASR_MODE', 'streaming') == 'streaming' else QwenSTT(),
         llm=openai.LLM.with_deepseek(
             api_key=required("DEEPSEEK_API_KEY"),
             model=os.getenv("LLM_MODEL", "deepseek-chat"),
@@ -85,7 +86,8 @@ async def persona_voice(ctx: JobContext) -> None:
             turn_detection="vad",
             endpointing={"min_delay": profile['endpoint_min'], "max_delay": profile['endpoint_max']},
             interruption={"enabled": True, "min_duration": 0.35},
-            preemptive_generation={"enabled": not consultation},
+            preemptive_generation={"enabled": preflight_enabled(), "preemptive_tts": False,
+                                   "max_retries": 2, "max_speech_duration": 10.0},
         ),
     )
 

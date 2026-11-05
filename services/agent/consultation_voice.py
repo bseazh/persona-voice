@@ -12,6 +12,7 @@ from livekit import api
 from livekit.agents import Agent, RunContext, function_tool
 from turn_profile import turn_profile
 from qwen_tts import tts_mode
+from preflight import preflight_enabled
 
 ROOT = Path(__file__).resolve().parents[2]
 logger = logging.getLogger(__name__)
@@ -105,16 +106,21 @@ class ConsultationAssistant(Agent):
     async def llm_node(self, chat_ctx, tools, model_settings):
         generated=[]
         started=time.monotonic()
+        cancelled=False
         try:
             async for chunk in Agent.default.llm_node(self,chat_ctx,tools,model_settings):
                 if isinstance(chunk,str):generated.append(chunk)
                 elif getattr(chunk,'delta',None) and chunk.delta.content:generated.append(chunk.delta.content)
                 yield chunk
+        except asyncio.CancelledError:
+            cancelled=True
+            raise
         finally:
             user_ids=[item.id for item in chat_ctx.items if getattr(item,'role',None)=='user']
             self.controller.journal.emit('generated',{'text':''.join(generated)[:8000],
                 'elapsed_ms':round((time.monotonic()-started)*1000),'template':'free-chat-v1',
-                'source_message_id':user_ids[-1] if user_ids else None})
+                'source_message_id':user_ids[-1] if user_ids else None,
+                'cancelled':cancelled, 'at':time.time(), 'status':'generated_not_playback_confirmation'})
 
     @function_tool()
     async def finish_consultation(self, context: RunContext, farewell: str):
@@ -146,7 +152,19 @@ class VoiceController:
             'tts_sample_rate': 24000,
             'tts_mode': tts_mode(),
             'turn_profile': turn_profile(), 'transcription_timeout': 4.0,
-            'preemptive_generation': False})
+            'preemptive_generation': preflight_enabled(), 'preemptive_tts': False,
+            'preflight_stability_ms': 300, 'preflight_min_chars': 6,
+            'preflight_max_candidates': 2, 'preemptive_max_speech_duration': 10.0})
+        @self.session.on('speech_created')
+        def speech_created(event):
+            handle = event.speech_handle
+            self.journal.emit('speech_created', {'speech_id': handle.id, 'at': time.time(),
+                'source': event.source})
+            def completed(speech):
+                self.journal.emit('speech_done', {'speech_id': speech.id, 'at': time.time(),
+                    'scheduled': speech.scheduled, 'interrupted': speech.interrupted})
+            handle.add_done_callback(completed)
+
         @self.session.on('conversation_item_added')
         def message(event):
             item=event.item

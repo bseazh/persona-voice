@@ -19,7 +19,18 @@ for e in data['events']:
     elif e['kind']=='voice.benchmark_config':
         payload={k:p[k] for k in ('stage','measurement_version','clock','endpoint','template',
                  'tts_provider','tts_model','tts_voice','tts_sample_rate','tts_mode',
-                 'turn_profile','transcription_timeout','preemptive_generation') if k in p}
+                 'turn_profile','transcription_timeout','preemptive_generation','preemptive_tts',
+                 'preflight_stability_ms','preflight_min_chars','preflight_max_candidates',
+                 'preemptive_max_speech_duration') if k in p}
+    elif e['kind'] in ('voice.asr_preflight','voice.asr_final'):
+        payload={k:p[k] for k in ('at','characters','request_id','provisional') if k in p}
+    elif e['kind']=='voice.generated':
+        payload={k:p[k] for k in ('at','elapsed_ms','source_message_id','cancelled','status') if k in p}
+    elif e['kind'] in ('voice.speech_created','voice.speech_done'):
+        payload={k:p[k] for k in ('at','speech_id','source','scheduled','interrupted') if k in p}
+    elif e['kind']=='voice.metrics':
+        payload={k:p[k] for k in ('type','speech_id','request_id','duration','ttft','ttfb',
+                 'prompt_tokens','completion_tokens','total_tokens') if k in p}
     elif e['kind']=='phone.state':
         payload={k:p[k] for k in ('at','state','reason') if k in p}
     elif e['kind'] in ('voice.farewell_played','voice.error','voice.closed'):

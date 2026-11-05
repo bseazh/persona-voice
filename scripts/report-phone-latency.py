@@ -19,6 +19,12 @@ for repeat in (1, 2):
     session = data['session']
     lines += [f"会话：{data['id']}；结束原因：{session.get('reason')}；消息数：{len(session.get('messages', []))}。", '']
     config = next((e['payload'] for e in data['events'] if e['kind']=='voice.benchmark_config'), {})
+    speculative = bool(config.get('preemptive_generation'))
+    if speculative:
+        hints = sum(e['kind']=='voice.asr_preflight' for e in data['events'])
+        attempts = [e['payload'] for e in data['events'] if e['kind']=='voice.generated']
+        lines += [f"提前生成已启用；稳定中间识别提示 {hints} 次；模型生成记录 {len(attempts)} 次，其中取消 {sum(bool(p.get('cancelled')) for p in attempts)} 次。生成完成不等于候选被采用或实际播放；这些计数不是计费 token 数。", '',
+                  '本轮阶段存在重叠，统一不计算加和占比。SDK 转录延迟可能受预识别提示影响，不能直接当作供应商 FINAL 延迟；真实 FINAL 时间另存 asr_final 事件。', '']
     lines += [f"代码记录：{data.get('revision', '未记录')}；模板：{config.get('template', '未记录')}；TTS：{config.get('tts_provider', '未记录')} / {config.get('tts_model', '未记录')} / {config.get('tts_voice', '未记录')} / {config.get('tts_mode', '未记录')}。", '']
     timings = [e['payload'] for e in data['events'] if e['kind'] == 'voice.turn_timing']
     users = [t['metrics'] for t in timings if t['role'] == 'user']
@@ -34,7 +40,7 @@ for repeat in (1, 2):
         eou, ttft, ttfs, tts = (u.get('end_of_turn_delay'), m.get('llm_node_ttft'), m.get('llm_node_ttfs'), m.get('tts_node_ttfb'))
         values = [eou, ttft, ttfs-ttft if ttfs is not None and ttft is not None else None, tts]
         residual = total-sum(values) if all(v is not None for v in values) else None
-        valid = residual is not None and residual >= 0 and all(v >= 0 for v in values)
+        valid = not speculative and residual is not None and residual >= 0 and all(v >= 0 for v in values)
         def fmt(v):
             return 'N/A' if v is None else f'{v:.3f}' + (f' / {v/total*100:.1f}%' if valid and total > 0 else '')
         asr = u.get('transcription_delay')

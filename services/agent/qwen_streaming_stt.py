@@ -2,18 +2,21 @@
 import asyncio
 import logging
 import os
+import time
 
 import dashscope
 from livekit import rtc
 from livekit.agents import APIConnectionError, DEFAULT_API_CONNECT_OPTIONS, stt
 from qwen_stt import QwenSTT
+from preflight import StablePreflight, preflight_enabled
 
 logger = logging.getLogger(__name__)
 
 
 class QwenStreamingSTT(QwenSTT):
-    def __init__(self, **kwargs):
+    def __init__(self, *, audit=None, **kwargs):
         super().__init__(**kwargs)
+        self.audit = audit
         self._capabilities = stt.STTCapabilities(streaming=True, interim_results=True)
 
     def stream(self, *, language=None, conn_options=DEFAULT_API_CONNECT_OPTIONS):
@@ -29,6 +32,14 @@ class QwenStream(stt.RecognizeStream):
             model=os.getenv('QWEN_STREAMING_ASR_MODEL', 'qwen-audio-3.1-asr-flash-streaming'),
             format='pcm', sample_rate=16000, timeout=120)
         tasks = []
+        def emit_preflight(event):
+            self._event_ch.send_nowait(stt.SpeechEvent(
+                type=stt.SpeechEventType.PREFLIGHT_TRANSCRIPT,
+                request_id=event.request_id, alternatives=event.alternatives))
+            if self._stt.audit:
+                self._stt.audit('asr_preflight', {'at': time.time(), 'characters': len(event.alternatives[0].text),
+                    'request_id': event.request_id, 'provisional': True})
+        preflight = StablePreflight(emit_preflight)
         try:
             await asyncio.to_thread(session.start)
             logger.info('qwen_streaming_connected', extra={'request_id': session.request_id})
@@ -56,13 +67,21 @@ class QwenStream(stt.RecognizeStream):
                         self._event_ch.send_nowait(stt.SpeechEvent(type=stt.SpeechEventType.START_OF_SPEECH))
                         speaking = True
                     final = result.is_sentence_end()
-                    self._event_ch.send_nowait(stt.SpeechEvent(
+                    event = stt.SpeechEvent(
                         type=stt.SpeechEventType.FINAL_TRANSCRIPT if final else stt.SpeechEventType.INTERIM_TRANSCRIPT,
                         request_id=session.request_id or '',
                         alternatives=[stt.SpeechData(language='zh', text=text,
                             start_time=(sentence.get('begin_time') or 0) / 1000,
-                            end_time=(sentence.get('end_time') or 0) / 1000)]))
+                            end_time=(sentence.get('end_time') or 0) / 1000)])
                     if final:
+                        preflight.final()
+                    self._event_ch.send_nowait(event)
+                    if not final and preflight_enabled():
+                        preflight.update(text, event)
+                    if final:
+                        if self._stt.audit:
+                            self._stt.audit('asr_final', {'at': time.time(), 'characters': len(text),
+                                'request_id': session.request_id or '', 'provisional': False})
                         self._event_ch.send_nowait(stt.SpeechEvent(type=stt.SpeechEventType.END_OF_SPEECH))
                         speaking = False
                 if not self._input_ch.closed:
@@ -76,6 +95,7 @@ class QwenStream(stt.RecognizeStream):
             # SDK exceptions may contain request payloads; expose only their class.
             raise APIConnectionError(f'Qwen streaming ASR failed ({type(error).__name__})') from None
         finally:
+            preflight.close()
             await asyncio.to_thread(session.close)
             for task in tasks:
                 task.cancel()
