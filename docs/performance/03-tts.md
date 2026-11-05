@@ -2,6 +2,8 @@
 
 ## 当前结论
 
+GitHub Issue：[本阶段测试与优化历史 #3](https://github.com/bseazh/persona-voice/issues/3)。
+
 尚未优化；目前是按句提交、音频分块返回。
 
 ## 优化前
@@ -25,4 +27,4 @@
 
 目前不能判断收益，不填“已优化成功”。每次测试后补充：改变了什么、为什么、各段前后耗时、占比、异常原因、人工反馈、保留或回滚结论及代码版本。两通未完成不进入下一项优化。
 
-工作簿：[latency-benchmark.xlsx](latency-benchmark.xlsx)，工作表“03 TTS流式”。脱敏证据：[measurements.json](measurements.json)。
+每次测试使用 [Markdown 评论模板](TEST_RESULT_TEMPLATE.md) 在本阶段 GitHub Issue 追加结果，保留完整历史。阶段 Issue 入口见 [总索引](README.md)。脱敏证据：[measurements.json](measurements.json)。

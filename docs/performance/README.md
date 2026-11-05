@@ -1,8 +1,8 @@
 # 电话时延：基线与四项优化
 
-这是持续更新的 GitHub 验收档案，不能仅保存在本地输出目录。每轮都要提交 Excel、对应阶段报告和脱敏测量证据。
+这是持续更新的 GitHub 验收档案。用户确认所需的是 Issues，不是 Excel；以 GitHub Issue 时间线和仓库 Markdown 为正式记录，不再维护工作簿。每次测试后立即追加结果评论，不等两通全部完成；两通有效测试完成后再补阶段对比总结。
 
-- [Excel 前后对照与逐轮记录](latency-benchmark.xlsx)
+- [每次测试的 Issue 评论模板](TEST_RESULT_TEMPLATE.md)
 - [01 基线：当前链路耗时](01-baseline.md)
 - [02 识别收尾：停顿与最终转录](02-asr.md)
 - [03 TTS：双向流与首音频](03-tts.md)
@@ -10,6 +10,16 @@
 - [05 简短发言：时延与咨询质量](05-concise.md)
 - [脱敏原始测量](measurements.json)
 - [测试协议与指标定义](../LATENCY_BENCHMARK.md)
+
+## GitHub Issues
+
+|阶段|Issue|当前状态|
+|---|---|---|
+|01 基线|[#1](https://github.com/bseazh/persona-voice/issues/1)|已分别补录两次未接通评论；新线路两通有效测试待完成|
+|02 识别收尾|[#2](https://github.com/bseazh/persona-voice/issues/2)|待基线完成后实施并测试两次|
+|03 TTS 双向流|[#3](https://github.com/bseazh/persona-voice/issues/3)|待上一阶段完成|
+|04 提前生成|[#4](https://github.com/bseazh/persona-voice/issues/4)|待上一阶段完成|
+|05 简短发言|[#5](https://github.com/bseazh/persona-voice/issues/5)|待上一阶段完成|
 
 ## 当前实际结果
 
@@ -28,8 +38,8 @@
 
 ## 如何维护
 
-工作簿黄色区域用于填入真实数据，“99 示例非实测”只展示格式和占比公式，绝不混入统计。填写时必须附会话 ID；每阶段更新独立 Markdown 的解释与决策，完成重算并检查公式后提交 Git。工作簿按两通等权平均比较，不把平均的中位数当总体中位数。
+每个阶段一个 Issue。每次测试使用模板追加 Markdown 评论，附唯一会话 ID、代码版本、配置、逐轮耗时、异常及人工反馈。失败拨号也要提交，标明无有效样本。不得覆盖前一次结果；修正数据应追加更正说明。两通完成后补优化前后差值、比例及保留/回滚决策，检查后关闭阶段 Issue。
 
-`scripts/build-latency-workbook.py` 用于初次生成模板，会覆盖工作簿与阶段说明；已有人工填写后不要直接重建。`scripts/benchmark-phone.cjs` 保存私人原始事件，`scripts/report-phone-latency.py` 生成本地逐轮报告；提交前只提取白名单计时字段到本目录，禁止提交 API Key、管理员密码或完整健康转录。
+`scripts/benchmark-phone.cjs` 保存私人原始事件，`scripts/report-phone-latency.py` 生成本地逐轮 Markdown 报告；提交前只提取白名单计时字段到本目录，禁止提交 API Key、管理员密码或完整健康转录。GitHub 提交失败时必须标记“待同步”，保留会话 ID 并核对有无重复评论，不得声称已发布。
 
 当前没有实施四项优化，也没有宣称优化收益。已部署的只是 SDK 计时日志；两个语音结束流程测试通过。

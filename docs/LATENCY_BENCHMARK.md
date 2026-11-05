@@ -27,6 +27,6 @@
 
 换卡后的新批次使用 `node scripts/benchmark-phone.cjs baseline-newline 1`，第二通使用 `baseline-newline 2`。脚本校验工作台的主被叫配置后拨号；不会更改物理 SIM 号码。历史 baseline 两次未接通记录不覆盖。请求 ID 先落盘，重复运行拒绝拨打，避免不确定结果下重复呼叫。输出在项目 BigApple输出/latency-benchmark，含私人转录，不提交 Git。
 
-脱敏测试报告、Excel 和测量数据必须进入 `docs/performance/` 并推送 GitHub。入口见 [时延优化跟踪](performance/README.md)。换手机或换 SIM 后重新建立基线，不把两种线路的差异算作软件优化收益。
+每次测试结束，必须将脱敏 Markdown 结果追加到对应 GitHub Issue，再将阶段报告和测量数据保存到 `docs/performance/` 并推送 GitHub。入口见 [时延优化跟踪](performance/README.md)。换手机或换 SIM 后重新建立基线，不把两种线路的差异算作软件优化收益。
 
 完成两通基线并出报告前，不修改语音策略。先只增加 SDK 原始计时日志，各阶段保持同一套测量开销。

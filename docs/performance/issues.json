@@ -1,0 +1,27 @@
+[
+  {
+    "stage": "01-baseline",
+    "number": 1,
+    "url": "https://github.com/bseazh/persona-voice/issues/1"
+  },
+  {
+    "stage": "02-asr",
+    "number": 2,
+    "url": "https://github.com/bseazh/persona-voice/issues/2"
+  },
+  {
+    "stage": "03-tts",
+    "number": 3,
+    "url": "https://github.com/bseazh/persona-voice/issues/3"
+  },
+  {
+    "stage": "04-preemptive",
+    "number": 4,
+    "url": "https://github.com/bseazh/persona-voice/issues/4"
+  },
+  {
+    "stage": "05-concise",
+    "number": 5,
+    "url": "https://github.com/bseazh/persona-voice/issues/5"
+  }
+]

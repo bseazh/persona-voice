@@ -10,7 +10,7 @@
 
 ## 电话时延优化报告
 
-[Excel 与五阶段报告](docs/performance/README.md)：基线、识别收尾、TTS 流式、提前生成、简短发言。每阶段保留两次有效测试、优化前后逐段耗时与占比、异常原因及结论；未接通不计为有效样本。换手机或 SIM 后重新建立基线，报告随代码提交 GitHub。
+[GitHub Issues 与五阶段 Markdown 报告](docs/performance/README.md)：基线、识别收尾、TTS 流式、提前生成、简短发言。每次测试结束在对应 Issue 追加结果，保留优化前后逐段耗时与占比、异常原因及结论；未接通不计为有效样本。换手机或 SIM 后重新建立基线，报告随代码提交 GitHub。
 
 ## 当前架构
 
