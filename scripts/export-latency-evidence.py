@@ -16,6 +16,10 @@ for e in data['events']:
         payload={'role':p.get('role'),'message_id':p.get('message_id'),
                  'interrupted':p.get('interrupted'),
                  'metrics':{k:v for k,v in p.get('metrics',{}).items() if k in allowed and isinstance(v,(int,float))}}
+    elif e['kind']=='voice.benchmark_config':
+        payload={k:p[k] for k in ('stage','measurement_version','clock','endpoint','template',
+                 'tts_provider','tts_model','tts_voice','tts_sample_rate','tts_mode',
+                 'turn_profile','transcription_timeout','preemptive_generation') if k in p}
     elif e['kind']=='phone.state':
         payload={k:p[k] for k in ('at','state','reason') if k in p}
     elif e['kind'] in ('voice.farewell_played','voice.error','voice.closed'):
@@ -23,7 +27,8 @@ for e in data['events']:
     else:continue
     events.append({'kind':e['kind'],'payload':payload})
 output={'session_id':data['id'],'source':'consultation API / SDK timing v1',
-        'application_revision':'ee37753','status':data['session']['status'],
+        'application_revision':data.get('revision', 'not_recorded'),
+        'status':data['session']['status'],
         'reason':data['session'].get('reason'),'events':events}
 target=root/'docs/performance'/f'{source.stem}-timings.json'
 target.write_text(json.dumps(output,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')

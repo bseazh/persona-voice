@@ -12,6 +12,7 @@ from qwen_streaming_stt import QwenStreamingSTT
 from qwen_tts import QwenTTS
 from phone_transcript import attach_phone_transcript
 from consultation_voice import VoiceJournal, VoiceController, ConsultationAssistant
+from turn_profile import turn_profile
 
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / ".env")
@@ -63,6 +64,7 @@ async def persona_voice(ctx: JobContext) -> None:
         except Exception:
             await journal.close()
             raise
+    profile = turn_profile()
     session = AgentSession(
         stt=QwenStreamingSTT(**speech) if consultation or os.getenv('ASR_MODE', 'streaming') == 'streaming' else QwenSTT(),
         llm=openai.LLM.with_deepseek(
@@ -74,14 +76,14 @@ async def persona_voice(ctx: JobContext) -> None:
         tts=QwenTTS(**speech),
         vad=silero.VAD.load(
             min_speech_duration=0.08,
-            min_silence_duration=0.5,
+            min_silence_duration=profile['vad_silence'],
             prefix_padding_duration=0.3,
             activation_threshold=0.35,
         ),
         transcription_timeout=4.0,
         turn_handling=TurnHandlingOptions(
             turn_detection="vad",
-            endpointing={"min_delay": 0.45, "max_delay": 1.5},
+            endpointing={"min_delay": profile['endpoint_min'], "max_delay": profile['endpoint_max']},
             interruption={"enabled": True, "min_duration": 0.35},
             preemptive_generation={"enabled": not consultation},
         ),
