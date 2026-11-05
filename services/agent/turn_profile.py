@@ -7,7 +7,8 @@ PROFILES = {
 }
 
 def turn_profile():
-    name = os.getenv('VOICE_TURN_PROFILE', 'local-fast-v1')
+    # Two phone trials found no demonstrated benefit; keep the experiment opt-in.
+    name = os.getenv('VOICE_TURN_PROFILE', 'baseline')
     if name not in PROFILES:
         raise ValueError('VOICE_TURN_PROFILE must be baseline or local-fast-v1')
     return {'name': name, **PROFILES[name]}

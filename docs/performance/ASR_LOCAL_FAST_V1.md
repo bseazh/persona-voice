@@ -14,7 +14,7 @@
 
 没有确认千问当前模型支持可调句末静音参数，因此不向供应商传入猜测参数。本次是本地endpointing优化实验，不宣称修复了供应商最终结果延迟。
 
-通过 VOICE_TURN_PROFILE=baseline 可恢复旧值；默认 local-fast-v1。会话 benchmark_config 会记录实际profile、参数、TTS供应商/模型/音色，便于复盘。
+实验时默认 local-fast-v1。两通测试未显示收益后，默认已恢复 baseline；VOICE_TURN_PROFILE=local-fast-v1 可显式重现实验。会话 benchmark_config 会记录实际profile、参数、TTS供应商/模型/音色，便于复盘。
 
 测试两通：每通尽量5轮以上，分别包含短句、长句、约半秒句中停顿、插话、主动结束。逐轮采集最终转录、收尾、LLM首字、切句、当前千问TTS首音频、总等待。误切句、抢话、漏字和打断体验与速度同等重要。
 

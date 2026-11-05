@@ -136,7 +136,7 @@ class VoiceController:
         self.poll_task=None
 
     def attach(self):
-        self.journal.emit('benchmark_config', {'stage': os.getenv('VOICE_BENCHMARK_STAGE', 'asr-local-endpointing'),
+        self.journal.emit('benchmark_config', {'stage': os.getenv('VOICE_BENCHMARK_STAGE', turn_profile()['name']),
             'measurement_version': 1, 'clock': 'sdk_source_timestamps',
             'endpoint': 'agent_room_output_not_handset', 'template': 'free-chat-v1',
             'tts_provider': 'DashScope/Qwen',
