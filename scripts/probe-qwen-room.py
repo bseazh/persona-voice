@@ -79,7 +79,7 @@ async def main():
             await send(question)
             for _ in range(60):
                 current=await request('session?id='+sid)
-                if any(m['role']=='assistant' and '24' in m['text'] for m in current['messages']):break
+                if any(m['role']=='assistant' and ('24' in m['text'] or '二十四' in m['text']) for m in current['messages']):break
                 await asyncio.sleep(.5)
             else:raise RuntimeError('answer_not_persisted')
             end_start=time.monotonic()
