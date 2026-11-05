@@ -135,12 +135,24 @@ class VoiceController:
         self.poll_task=None
 
     def attach(self):
+        self.journal.emit('benchmark_config', {'stage': os.getenv('VOICE_BENCHMARK_STAGE', 'baseline'),
+            'measurement_version': 1, 'clock': 'sdk_source_timestamps',
+            'endpoint': 'agent_room_output_not_handset'})
         @self.session.on('conversation_item_added')
         def message(event):
             item=event.item
             if getattr(item,'role',None) in ('user','assistant') and item.text_content:
                 self.journal.emit('message',{'id':item.id,'role':item.role,'text':item.text_content[:8000],
                     'interrupted':bool(getattr(item,'interrupted',False))})
+                # SDK timestamps measure generation/playback, not delayed database delivery.
+                values = getattr(item, 'metrics', {}) or {}
+                self.journal.emit('turn_timing', {'message_id': item.id, 'role': item.role,
+                    'interrupted': bool(getattr(item, 'interrupted', False)),
+                    'metrics': {key: values[key] for key in (
+                        'started_speaking_at', 'stopped_speaking_at', 'transcription_delay',
+                        'end_of_turn_delay', 'on_user_turn_completed_delay', 'llm_node_ttft',
+                        'llm_node_ttfs', 'tts_node_ttfb', 'playback_latency', 'e2e_latency')
+                        if isinstance(values.get(key), (int, float))}})
 
         @self.session.on('metrics_collected')
         def metrics(event):

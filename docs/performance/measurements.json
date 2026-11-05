@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "unit": "seconds",
+  "source": "Authenticated consultation API phone.state events, collected 2026-11-05",
+  "privacy": "No credentials, full phone numbers or transcripts. Private raw data remains outside Git.",
+  "current_line": "2026-11-05 changed SIM/caller and recipient; new baseline required",
+  "attempts": [
+    {"batch": "old-line-baseline", "repeat": 1, "session_id": "2c401af0-3498-4291-bec9-6b19d60da6ad", "dialing_at": 1793845443.163205, "ended_at": 1793845477.5332203, "status": "phone_not_connected", "valid_turns": 0},
+    {"batch": "old-line-baseline", "repeat": 2, "session_id": "dd64210b-7c2b-4c99-b1e6-de8e36702078", "dialing_at": 1793845505.2685921, "ended_at": 1793845539.6376734, "status": "phone_not_connected", "valid_turns": 0}
+  ],
+  "turns": []
+}

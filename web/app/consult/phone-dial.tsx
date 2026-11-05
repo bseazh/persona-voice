@@ -30,7 +30,7 @@ export default function PhoneDial({
   onStarted: (id: string) => Promise<unknown>;
 }) {
   const [line, setLine] = useState<Line | null>(null),
-    [number, setNumber] = useState("13660199577"),
+    [number, setNumber] = useState(""),
     [title, setTitle] = useState("电话睡眠调研");
   const [consent, setConsent] = useState(false),
     [busy, setBusy] = useState(false),
@@ -40,9 +40,15 @@ export default function PhoneDial({
     number: string;
     title: string;
   } | null>(null);
+  const initializedRecipient = useRef(false);
   async function refresh() {
     try {
-      setLine(await request("line"));
+      const next = await request("line");
+      setLine(next);
+      if (!initializedRecipient.current) {
+        setNumber((current) => current || next.recipient);
+        initializedRecipient.current = true;
+      }
       setError("");
     } catch (e) {
       setLine(null);
@@ -116,7 +122,7 @@ export default function PhoneDial({
               onChange={(e) => setNumber(e.target.value.replace(/\s/g, ""))}
             />
           </label>
-          <p>实际线路：{line?.caller || "19221659824"} · SIM 2（逻辑槽位 1）</p>
+          <p>配置主叫：{line?.caller || "未读取"} · SIM 2（逻辑槽位 1）；实际号码以 SIM 和接听端来电显示为准</p>
           <small>
             主叫号码由实体 SIM 决定。网页不远程切换卡槽。允许号码：
             {line?.numbers.join("、") || "等待服务器检查"}

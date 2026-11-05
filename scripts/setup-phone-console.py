@@ -14,9 +14,12 @@ def run(*args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--allow-number', help='Add an exact 11-digit recipient after configuring its Asterisk route')
+    parser.add_argument('--caller-number', help='Document expected SIM caller; does not change the physical SIM number')
     args = parser.parse_args()
     if args.allow_number and not re.fullmatch(r'[0-9]{11}', args.allow_number):
         parser.error('Recipient must be exactly 11 digits')
+    if args.caller_number and not re.fullmatch(r'1[0-9]{10}', args.caller_number):
+        parser.error('Caller must be exactly 11 digits')
     assert os.geteuid() == 0, 'Run with sudo'
     assert not run('asterisk', '-rx', 'core show channels concise').strip(), 'Active phone call: wait before installing'
     config = Path('/etc/persona-phone-console.env')
@@ -40,6 +43,8 @@ def main():
             lines.append('PHONE_ALLOWED_NUMBERS=' + args.allow_number)
         config.write_text('\n'.join(lines) + '\n')
     values = dict(line.split('=', 1) for line in config.read_text().splitlines() if '=' in line)
+    if args.caller_number:
+        values['PHONE_CALLER_NUMBER'] = args.caller_number
     values.setdefault('PHONE_AMI_PASSWORD', secrets.token_hex(32))
     environment = dict(line.split('=', 1) for line in (ROOT / '.env').read_text().splitlines() if '=' in line and not line.startswith('#'))
     values['CONSULTATION_AGENT_SECRET'] = environment['CONSULTATION_AGENT_SECRET']
