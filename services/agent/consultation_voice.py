@@ -166,8 +166,8 @@ class VoiceController:
         self.started=time.monotonic()
         self.poll_task=None
 
-    def attach(self):
-        self.journal.emit('benchmark_config', {'stage': os.getenv('VOICE_BENCHMARK_STAGE', turn_profile()['name']),
+    def benchmark_config(self):
+        return {'stage': os.getenv('VOICE_BENCHMARK_STAGE', turn_profile()['name']),
             'measurement_version': 1, 'clock': 'sdk_source_timestamps',
             'endpoint': 'agent_room_output_not_handset', 'template': 'free-chat-v1',
             'tts_provider': 'DashScope/Qwen',
@@ -179,7 +179,10 @@ class VoiceController:
             'preemptive_generation': preflight_enabled(), 'preemptive_tts': False,
             'preflight_mode': 'vad-gated-v2',
             'preflight_stability_ms': 150, 'preflight_min_chars': 6,
-            'preflight_max_candidates': 1, 'preemptive_max_speech_duration': 10.0})
+            'preflight_max_candidates': 1, 'preemptive_max_speech_duration': 10.0}
+
+    def attach(self):
+        self.journal.emit('benchmark_config', self.benchmark_config())
         @self.session.on('speech_created')
         def speech_created(event):
             handle = event.speech_handle
@@ -225,7 +228,7 @@ class VoiceController:
 
         @self.session.on('close')
         def closed(event):
-            if not self.closed:
+            if not self.closed and not self.finishing:
                 self.closed=True
                 self.journal.emit('closed',{'reason':'participant_disconnected'})
 

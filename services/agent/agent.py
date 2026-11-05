@@ -14,6 +14,8 @@ from phone_transcript import attach_phone_transcript
 from consultation_voice import VoiceJournal, VoiceController, ConsultationAssistant
 from turn_profile import turn_profile
 from preflight import preflight_enabled
+from qwen_realtime import QwenRealtime
+from realtime_voice import RealtimeAssistant, RealtimeController
 
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / ".env")
@@ -55,42 +57,53 @@ async def persona_voice(ctx: JobContext) -> None:
     consultation=ctx.room.name.startswith(('consult-','sim-ai-'))
     journal=VoiceJournal(ctx.room.name) if consultation else None
     speech={}
+    route='pipeline'
     if journal:
         try:
             consultation_id = None
             if ctx.room.name.startswith('sim-ai-'):
                 participant = await ctx.wait_for_participant()
                 consultation_id = participant.attributes.get('persona.consultation_id')
-            speech=(await journal.start(consultation_id))['speech']
+            configuration=await journal.start(consultation_id)
+            speech=configuration['speech']
+            route=configuration.get('voice_route','pipeline')
         except Exception:
             await journal.close()
             raise
-    profile = turn_profile()
-    speech_to_text = QwenStreamingSTT(audit=journal.emit if journal else None, **speech) if consultation or os.getenv('ASR_MODE', 'streaming') == 'streaming' else QwenSTT()
-    session = AgentSession(
-        stt=speech_to_text,
-        llm=openai.LLM.with_deepseek(
-            api_key=required("DEEPSEEK_API_KEY"),
-            model=os.getenv("LLM_MODEL", "deepseek-chat"),
-            base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"),
-            temperature=0.6,
-        ),
-        tts=QwenTTS(**speech),
-        vad=silero.VAD.load(
-            min_speech_duration=0.08,
-            min_silence_duration=profile['vad_silence'],
-            prefix_padding_duration=0.3,
-            activation_threshold=0.35,
-        ),
-        transcription_timeout=4.0,
-        turn_handling=TurnHandlingOptions(
-            turn_detection="vad",
-            endpointing={"min_delay": profile['endpoint_min'], "max_delay": profile['endpoint_max']},
-            interruption={"enabled": True, "min_duration": 0.35},
-            preemptive_generation={"enabled": preflight_enabled(), "preemptive_tts": False,
-                                   "max_retries": 2, "max_speech_duration": 10.0},
-        ),
-    )
+    speech_to_text=None
+    if route=='qwen-realtime':
+        model=QwenRealtime(key=speech.get('key'),audit=journal.emit if journal else None)
+        session=AgentSession(llm=model)
+        ctx.add_shutdown_callback(model.aclose)
+    elif route=='pipeline':
+        profile = turn_profile()
+        speech_to_text = QwenStreamingSTT(audit=journal.emit if journal else None, **speech) if consultation or os.getenv('ASR_MODE', 'streaming') == 'streaming' else QwenSTT()
+        session = AgentSession(
+            stt=speech_to_text,
+            llm=openai.LLM.with_deepseek(
+                api_key=required("DEEPSEEK_API_KEY"),
+                model=os.getenv("LLM_MODEL", "deepseek-chat"),
+                base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"),
+                temperature=0.6,
+            ),
+            tts=QwenTTS(**speech),
+            vad=silero.VAD.load(
+                min_speech_duration=0.08,
+                min_silence_duration=profile['vad_silence'],
+                prefix_padding_duration=0.3,
+                activation_threshold=0.35,
+            ),
+            transcription_timeout=4.0,
+            turn_handling=TurnHandlingOptions(
+                turn_detection="vad",
+                endpointing={"min_delay": profile['endpoint_min'], "max_delay": profile['endpoint_max']},
+                interruption={"enabled": True, "min_duration": 0.35},
+                preemptive_generation={"enabled": preflight_enabled(), "preemptive_tts": False,
+                                       "max_retries": 2, "max_speech_duration": 10.0},
+            ),
+        )
+    else:
+        raise ValueError('Unsupported voice route')
 
     if isinstance(speech_to_text, QwenStreamingSTT):
         @session.on('user_state_changed')
@@ -100,9 +113,11 @@ async def persona_voice(ctx: JobContext) -> None:
                 speech_to_text.set_user_speaking(event.new_state == 'speaking')
 
     attach_phone_transcript(session, ctx.room.name)
-    controller=VoiceController(ctx,session,journal) if journal else None
+    controller=(RealtimeController(ctx,session,journal,model) if route=='qwen-realtime'
+                else VoiceController(ctx,session,journal)) if journal else None
     if controller:controller.attach()
-    await session.start(agent=ConsultationAssistant(controller) if controller else PersonaAssistant(), room=ctx.room)
+    assistant=RealtimeAssistant() if route=='qwen-realtime' else ConsultationAssistant(controller) if controller else PersonaAssistant()
+    await session.start(agent=assistant, room=ctx.room)
     session.generate_reply(
         instructions="请简短介绍你是AI小禾，可以自由聊天，会保存文字转录和对话摘要，询问是否方便开始。不要提出健康或睡眠调查。只说一两句话。" if consultation else "请用一句自然的中文主动打招呼，介绍你叫小禾，然后问用户今天想聊什么。"
     )

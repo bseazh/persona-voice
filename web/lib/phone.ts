@@ -2,7 +2,7 @@ import "server-only";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { RoomServiceClient } from "livekit-server-sdk";
-import { db, speechSettings, UserError } from "./consultation";
+import { db, speechSettings, UserError, type VoiceRoute } from "./consultation";
 const execute = promisify(execFile);
 
 export async function phoneRequest(path: string, body?: object) {
@@ -34,7 +34,7 @@ export async function phoneRequest(path: string, body?: object) {
   return result;
 }
 
-export async function phoneReadiness() {
+export async function phoneReadiness(route: VoiceRoute = "pipeline") {
   const saved =
     (await db.query("SELECT value FROM consult_settings WHERE id='line'"))
       .rows[0]?.value || {};
@@ -112,7 +112,11 @@ export async function phoneReadiness() {
           ? "进程运行、房间服务可访问"
           : "检查 Agent 或 LiveKit 服务",
     },
-    {
+    ...(route === "qwen-realtime" ? [{
+      id: "realtime", label: "Qwen 原生实时语音",
+      ok: !!speech.configured,
+      detail: "已保存语音 Key；模型权限与实时可用性在连接时验证，不依赖独立 ASR/TTS 测试",
+    }] : [{
       id: "asr",
       label: "千问 ASR",
       ok: !!(speech.configured && speech.asr_test?.ok),
@@ -129,10 +133,11 @@ export async function phoneReadiness() {
       label: "DeepSeek",
       ok: !!process.env.DEEPSEEK_API_KEY,
       detail: "服务端凭据已配置；余额与实时可用性以调用结果为准",
-    },
+    }]),
   ];
   return {
     caller: line.caller,
+    voice_route: route,
     recipient: saved.recipient || "13660199577",
     sim: line.actual_sim,
     online: line.gateway_online,

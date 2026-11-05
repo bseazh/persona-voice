@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 type Line = {
+  voice_route: string;
   caller: string;
   sim: number;
   recipient: string;
@@ -32,6 +33,7 @@ export default function PhoneDial({
   const [line, setLine] = useState<Line | null>(null),
     [number, setNumber] = useState(""),
     [title, setTitle] = useState("电话自由对话");
+  const [voiceRoute, setVoiceRoute] = useState("pipeline");
   const [consent, setConsent] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -39,11 +41,12 @@ export default function PhoneDial({
     requestId: string;
     number: string;
     title: string;
+    voiceRoute: string;
   } | null>(null);
   const initializedRecipient = useRef(false);
-  async function refresh() {
+  const refresh = useCallback(async () => {
     try {
-      const next = await request("line");
+      const next = await request("line?route=" + voiceRoute);
       setLine(next);
       if (!initializedRecipient.current) {
         setNumber((current) => current || next.recipient);
@@ -54,12 +57,12 @@ export default function PhoneDial({
       setLine(null);
       setError(String(e));
     }
-  }
+  }, [voiceRoute]);
   useEffect(() => {
     void refresh();
     const timer = setInterval(() => void refresh(), 10000);
     return () => clearInterval(timer);
-  }, []);
+  }, [refresh]);
   async function dial() {
     if (
       !pending.current &&
@@ -70,7 +73,7 @@ export default function PhoneDial({
       return;
     setBusy(true);
     setError("");
-    pending.current ??= { requestId: crypto.randomUUID(), number, title };
+    pending.current ??= { requestId: crypto.randomUUID(), number, title, voiceRoute };
     const payload = pending.current;
     try {
       const result = await request("phone-dial", {
@@ -98,6 +101,13 @@ export default function PhoneDial({
       <div className="cw-grid">
         <section>
           <h2>咨询与接听方</h2>
+          <label>语音路线
+            <select value={voiceRoute} disabled={busy || !!pending.current}
+              onChange={(e) => { setLine(null); setVoiceRoute(e.target.value); }}>
+              <option value="pipeline">原路线 · ASR + DeepSeek + TTS</option>
+              <option value="qwen-realtime">新路线 · Qwen 原生全双工（试用）</option>
+            </select>
+          </label>
           <label>
             咨询模板
             <select disabled={busy}>
@@ -141,7 +151,7 @@ export default function PhoneDial({
               busy ||
               !consent ||
               (!pending.current &&
-                (!line?.dial_enabled || !line.numbers.includes(number)))
+                (!line?.dial_enabled || line.voice_route !== voiceRoute || !line.numbers.includes(number)))
             }
             onClick={() => void dial()}
           >

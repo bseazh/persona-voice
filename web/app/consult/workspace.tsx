@@ -18,6 +18,7 @@ type Consultation = {
   status: string;
   mode: "text" | "voice" | "phone";
   voice_state?: string;
+  voice_route?: "pipeline" | "qwen-realtime";
   phone_state?: string;
   created_at: string;
   ended_at?: string;
@@ -87,6 +88,7 @@ export default function Workspace() {
     requestId: string;
   } | null>(null);
   const [mode, setMode] = useState<"text" | "voice">("voice");
+  const [voiceRoute, setVoiceRoute] = useState("pipeline");
   const fields = current?.template?.fields || (current?.template?.id === "free-chat-v1" ? {} : legacyFields);
   async function refreshList() {
     setList(await api("sessions"));
@@ -149,7 +151,7 @@ export default function Workspace() {
   }
   async function start() {
     await run(async () => {
-      const c = await api("create", { title, consent, mode });
+      const c = await api("create", { title, consent, mode, voiceRoute });
       await load(c.id);
       await refreshList();
       if (mode === "voice") return;
@@ -365,10 +367,13 @@ export default function Workspace() {
                         <option value="text">文字咨询</option>
                       </select>
                     </label>
-                    <p>
-                      了解作息、入睡、白天状态及生活习惯。AI
-                      每次聚焦一个问题，支持跳过或随时结束。
-                    </p>
+                    {mode === "voice" && <label>语音路线
+                      <select value={voiceRoute} onChange={(e) => setVoiceRoute(e.target.value)}>
+                        <option value="pipeline">原路线 · ASR + DeepSeek + TTS</option>
+                        <option value="qwen-realtime">新路线 · Qwen 原生全双工（试用）</option>
+                      </select>
+                    </label>}
+                    <p>自由选择话题，支持连续问答、插话和随时结束。两条语音路线独立选择。</p>
                     <label>
                       咨询标题
                       <input
@@ -395,7 +400,7 @@ export default function Workspace() {
                           ? "创建语音咨询"
                           : "开始真实文字咨询"}
                     </button>
-                    <small>由 DeepSeek 生成回答，非预设回复。</small>
+                    <small>{mode === "voice" && voiceRoute === "qwen-realtime" ? "由 Qwen 实时语音直接回答，使用已保存的千问 Key。" : "由 DeepSeek 生成回答，非预设回复。"}</small>
                   </section>
                   <section>
                     <h2>
@@ -443,6 +448,7 @@ export default function Workspace() {
                   <div>
                     <div className="cw-kicker">LIVE CONSULTATION</div>
                     <h1>{current.title}</h1>
+                    {current.mode !== "text" && <small>{current.voice_route === "qwen-realtime" ? "Qwen 原生全双工" : "ASR + DeepSeek + TTS"}</small>}
                     <p>
                       {current.mode === "text"
                         ? "文字咨询 · 按轮显示回复"

@@ -59,6 +59,7 @@ export async function initDB() {
   ALTER TABLE consult_sessions ADD COLUMN IF NOT EXISTS mode text NOT NULL DEFAULT 'text';
   ALTER TABLE consult_sessions ADD COLUMN IF NOT EXISTS room_name text;
   ALTER TABLE consult_sessions ADD COLUMN IF NOT EXISTS voice_state text;
+  ALTER TABLE consult_sessions ADD COLUMN IF NOT EXISTS voice_route text NOT NULL DEFAULT 'pipeline';
   ALTER TABLE consult_sessions ADD COLUMN IF NOT EXISTS phone_number text;
   ALTER TABLE consult_sessions ADD COLUMN IF NOT EXISTS phone_state text;
   ALTER TABLE consult_sessions ADD COLUMN IF NOT EXISTS phone_updated_at timestamptz;
@@ -588,4 +589,14 @@ export async function speechSettings(secret = false) {
     configured: true,
     ...(secret ? { key: unseal(encrypted) } : {}),
   };
+}
+
+export type VoiceRoute = "pipeline" | "qwen-realtime";
+export function voiceRoute(value: unknown): VoiceRoute {
+  if (value === undefined || value === null || value === "pipeline") return "pipeline";
+  if (value === "qwen-realtime") return value;
+  throw new UserError("未知语音路线");
+}
+export function speechReady(speech: Awaited<ReturnType<typeof speechSettings>>, route: VoiceRoute) {
+  return !!(speech.configured && (route === "qwen-realtime" || (speech.asr_test?.ok && speech.tts_test?.ok)));
 }

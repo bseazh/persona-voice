@@ -23,6 +23,8 @@ import {
   speechSettings,
   seal,
   limit,
+  voiceRoute,
+  speechReady,
 } from "@/lib/consultation";
 import { toWav } from "@/lib/qwen-asr";
 import { phoneReadiness, phoneRequest } from "@/lib/phone";
@@ -67,7 +69,7 @@ export async function GET(req: NextRequest) {
         ).rows,
       );
     if (path === "speech") return json(await speechSettings());
-    if (path === "line") return json(await phoneReadiness());
+    if (path === "line") return json(await phoneReadiness(voiceRoute(req.nextUrl.searchParams.get("route"))));
     const id = req.nextUrl.searchParams.get("id") || "";
     if (path === "session") return json(await session(id));
     if (path === "events") {
@@ -277,6 +279,7 @@ export async function POST(req: NextRequest) {
       throw new UserError("请求过大");
     const b = await req.json();
     if (path === "phone-dial") {
+      const route = voiceRoute(b.voiceRoute);
       if (
         !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(
           b.requestId || "",
@@ -289,23 +292,23 @@ export async function POST(req: NextRequest) {
         throw new UserError("请确认自由对话模板、接听号码、SIM 2 和拨号授权");
       const previous = (
         await db.query(
-          "SELECT id,phone_number FROM consult_sessions WHERE id=$1 AND mode='phone'",
+          "SELECT id,phone_number,voice_route FROM consult_sessions WHERE id=$1 AND mode='phone'",
           [b.requestId],
         )
       ).rows[0];
       if (previous) {
-        if (previous.phone_number !== b.number)
+        if (previous.phone_number !== b.number || previous.voice_route !== route)
           throw new UserError("请求编号与号码不一致", 409);
         return json({ id: previous.id });
       }
       await limit("phone-dial", 10, 3600);
-      const readiness = await phoneReadiness();
+      const readiness = await phoneReadiness(route);
       if (!readiness.dial_enabled) throw new UserError(readiness.reason, 409);
       if (!readiness.numbers.includes(b.number))
         throw new UserError("接听号码不在服务器允许名单中", 403);
       try {
         await db.query(
-          "INSERT INTO consult_sessions(id,title,template,mode,voice_state,phone_number,phone_state) VALUES($1,$2,$3,'phone','dialing',$4,'submitting')",
+          "INSERT INTO consult_sessions(id,title,template,mode,voice_state,phone_number,phone_state,voice_route) VALUES($1,$2,$3,'phone','dialing',$4,'submitting',$5)",
           [
             b.requestId,
             typeof b.title === "string"
@@ -313,17 +316,18 @@ export async function POST(req: NextRequest) {
               : "电话自由对话",
             JSON.stringify(template),
             b.number,
+            route,
           ],
         );
       } catch (e) {
         if ((e as { code?: string }).code === "23505") {
           const same = (
             await db.query(
-              "SELECT id,phone_number FROM consult_sessions WHERE id=$1",
+              "SELECT id,phone_number,voice_route FROM consult_sessions WHERE id=$1",
               [b.requestId],
             )
           ).rows[0];
-          if (same && same.phone_number === b.number)
+          if (same && same.phone_number === b.number && same.voice_route === route)
             return json({ id: same.id });
           throw new UserError("已有未结束的电话咨询，请先查看该咨询", 409);
         }
@@ -334,6 +338,7 @@ export async function POST(req: NextRequest) {
         sim: 2,
         recipient_suffix: b.number.slice(-4),
         max_seconds: 180,
+        voice_route: route,
       });
       try {
         await phoneRequest("dial", {
@@ -411,17 +416,18 @@ export async function POST(req: NextRequest) {
         throw new UserError("请先确认文字保存与非诊断声明");
       const id = randomUUID();
       const mode = b.mode === "voice" ? "voice" : "text";
+      const route = voiceRoute(b.voiceRoute);
       if (mode === "voice") {
         const speech = await speechSettings();
-        if (!speech.configured || !speech.asr_test?.ok || !speech.tts_test?.ok)
-          throw new UserError("请先在语音配置完成 ASR 和 TTS 测试");
+        if (!speechReady(speech, route))
+          throw new UserError(route === "qwen-realtime" ? "请先保存千问语音 Key" : "请先在语音配置完成 ASR 和 TTS 测试");
       }
       const title =
         typeof b.title === "string"
           ? b.title.trim().slice(0, 80)
           : "自由对话测试";
       await db.query(
-        "INSERT INTO consult_sessions(id,title,template,mode,room_name,voice_state) VALUES($1,$2,$3,$4,$5,$6)",
+        "INSERT INTO consult_sessions(id,title,template,mode,room_name,voice_state,voice_route) VALUES($1,$2,$3,$4,$5,$6,$7)",
         [
           id,
           title || "自由对话测试",
@@ -429,12 +435,14 @@ export async function POST(req: NextRequest) {
           mode,
           mode === "voice" ? "consult-" + id : null,
           mode === "voice" ? "ready" : null,
+          route,
         ],
       );
       await event(id, "session.created", {
         template: "free-chat-v1",
         mode,
         consent: true,
+        voice_route: route,
       });
       return json({ id }, 201);
     }

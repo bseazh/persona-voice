@@ -1,11 +1,12 @@
-"""EXPERIMENTAL: Qwen beta bridge for pinned LiveKit 1.8.10; NOT production-ready.
+"""Opt-in Qwen beta bridge for pinned LiveKit 1.8.10.
 
 Keeps LiveKit's audio scheduling, cancellation, tools and transcript machinery.
 The public http_session hook confines provider differences to the transport.
-Known blockers: late events after cancellation, automatic ending reliability,
-and correlation of concurrent server VAD / explicit responses. Only probes use it.
+Explicit generation is restricted to idle turns; normal duplex turns are native
+server VAD responses. Business ending is controlled outside model tool selection.
 """
 import base64
+import asyncio
 import collections
 import json
 import os
@@ -15,6 +16,7 @@ import aiohttp
 from openai.types.beta.realtime.session import TurnDetection, InputAudioTranscription
 from livekit import rtc
 from livekit.plugins.openai import realtime
+from realtime_control import ResponseRouter
 
 MODEL = 'qwen-audio-3.1-realtime-flash'
 URL = 'wss://ws-kc0oqyijpss62nix.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime'
@@ -49,9 +51,16 @@ class QwenSocket:
         self.pending=collections.deque()
         self.has_user=False
         self.server_turn_pending=False
+        self.router=ResponseRouter(audit)
+        self.ready=collections.deque()
+        self.on_transcript=None
 
     async def send_str(self, data):
         e=json.loads(data); t=e['type']
+        if t=='response.cancel':
+            if not self.router.cancel():return
+            e['response_id']=self.router.active
+        if t=='input_audio_buffer.append' and self.router.muted:return
         if t=='session.update':
             e['session']=session_payload(e['session'])
         elif t=='input_audio_buffer.append':
@@ -64,14 +73,14 @@ class QwenSocket:
             if e.get('previous_item_id')=='root':e.pop('previous_item_id')
             item=e['item']
             if item.get('role')=='user':self.has_user=True
-            for part in item.get('content',[]):
-                if part.get('type')=='output_text':part['type']='text'
+            # Qwen requires output_text for assistant context replay (including
+            # session.say's actual farewell transcript), not the older 'text'.
         elif t=='response.create':
             response=e.setdefault('response',{})
             # Qwen does not echo OpenAI's response metadata. Only one explicit
             # generation may be outstanding; auto turns are identified separately.
-            if self.pending:
-                raise RuntimeError('Qwen explicit response already pending')
+            if self.pending or self.server_turn_pending or self.router.active or self.router.muted:
+                raise RuntimeError('Qwen explicit generation requires an idle, unmuted turn')
             if isinstance(response.get('tool_choice'),dict):
                 raise ValueError('Qwen supports auto/none/required tool_choice, not named forcing')
             metadata=response.pop('metadata',{}) or {}
@@ -82,6 +91,8 @@ class QwenSocket:
                     'type':'message','role':'user','content':[{'type':'input_text',
                     'text':'请按系统要求简短开场。'}]}}))
                 self.has_user=True
+        elif t=='input_audio_buffer.clear':
+            self.resampler=rtc.AudioResampler(24000,16000,num_channels=1)
         await self.ws.send_str(json.dumps(e,ensure_ascii=False))
         if self.audit and t in ('session.update', 'response.create'):
             payload=e.get('session',e.get('response',{}))
@@ -90,12 +101,23 @@ class QwenSocket:
                 'tool_choice':payload.get('tool_choice')})
 
     async def receive(self):
-        msg=await self.ws.receive()
-        if msg.type!=aiohttp.WSMsgType.TEXT:return msg
-        e=json.loads(msg.data); original=e['type']
+        while not self.ready:
+            msg=await self.ws.receive()
+            if msg.type!=aiohttp.WSMsgType.TEXT:return msg
+            e=json.loads(msg.data)
+            self.ready.extend(self.translate(e))
+        e=self.ready.popleft()
+        e['type']=EVENTS.get(e['type'],e['type'])
+        return aiohttp.WSMessage(aiohttp.WSMsgType.TEXT,json.dumps(e),'')
+
+    def translate(self,e):
+        original=e['type']
         if self.audit and original=='session.updated':
             self.audit('wire_session',{'tool_names':[x.get('name') for x in e.get('session',{}).get('tools',[])]})
-        if original=='input_audio_buffer.speech_started':self.has_user=True
+        if original=='input_audio_buffer.speech_started':
+            self.has_user=True
+        if original=='conversation.item.input_audio_transcription.completed' and self.on_transcript:
+            self.on_transcript(e.get('transcript',''))
         if original=='input_audio_buffer.speech_stopped':self.server_turn_pending=True
         if original=='response.created':
             if self.server_turn_pending:
@@ -105,6 +127,13 @@ class QwenSocket:
                 e['response']['metadata']=metadata
         if original=='error':
             error=e.get('error',{})
+            # Qwen server-VAD may have cancelled/completed the same response
+            # just before LiveKit's cancellation arrives. This exact response
+            # is an idempotent cancel acknowledgement, not a provider outage.
+            if (error.get('param')=='response.cancel' and
+                    error.get('message')=='Conversation has no active response.'):
+                if self.audit:self.audit('cancel_already_finished',{'type':'response.cancel'})
+                return []
             event_id=error.get('event_id')
             self.pending=collections.deque(p for p in self.pending if p[0]!=event_id)
         if self.audit and original in ('input_audio_buffer.speech_started','input_audio_buffer.speech_stopped',
@@ -112,8 +141,7 @@ class QwenSocket:
             self.audit('realtime_event',{'type':original,'at':time.time(),
                 'response_id':e.get('response',{}).get('id'),
                 'status':e.get('response',{}).get('status')})
-        e['type']=EVENTS.get(original,original)
-        return aiohttp.WSMessage(msg.type,json.dumps(e),msg.extra)
+        return self.router.feed(e)
 
     async def close(self):await self.ws.close()
 
@@ -122,16 +150,22 @@ class QwenTransport:
     def __init__(self,audit=None):
         self.client=aiohttp.ClientSession()
         self.audit=audit
+        self.sockets=[]
+        self.on_transcript=None
     async def ws_connect(self,*,url,headers):
-        return QwenSocket(await self.client.ws_connect(url,headers=headers),self.audit)
+        socket=QwenSocket(await self.client.ws_connect(url,headers=headers),self.audit)
+        socket.on_transcript=lambda text:self.on_transcript(text) if self.on_transcript else None
+        self.sockets.append(socket)
+        return socket
     async def close(self):await self.client.close()
 
 
 class QwenRealtime(realtime.RealtimeModel):
     def __init__(self, *, key=None, audit=None):
         self.transport=QwenTransport(audit)
+        self.key=key or os.environ['DASHSCOPE_API_KEY']
         super().__init__(model=MODEL,voice='longanqian',
-            api_key=key or os.environ['DASHSCOPE_API_KEY'],base_url=URL,
+            api_key=self.key,base_url=URL,
             http_session=self.transport,
             turn_detection=TurnDetection(type='server_vad',threshold=.5,silence_duration_ms=500),
             # Capability flag only: the wire bridge leaves Qwen's native transcription on.
@@ -139,6 +173,40 @@ class QwenRealtime(realtime.RealtimeModel):
 
     @property
     def provider(self):return 'DashScope/Qwen Realtime'
+
+    def mute_responses(self):
+        for socket in self.transport.sockets:socket.router.muted=True
+
+    async def farewell(self):
+        """A bounded, separate native-realtime utterance; no standalone TTS.
+
+        Buffer only this short final utterance so the transcript saved for it
+        is the provider's actual spoken text, not an assumed script.
+        """
+        async with asyncio.timeout(15):
+            async with self.transport.client.ws_connect(URL+'?model='+MODEL,
+                    headers={'Authorization':'Bearer '+self.key}) as ws:
+                await ws.send_json({'type':'session.update','session':{
+                    'modalities':['text','audio'],'voice':'longanqian','turn_detection':None,
+                    'instructions':'你是中文AI助手。对话已结束。只说一句简短告别，不提问、不解释、不调用工具。'}})
+                await ws.send_json({'type':'conversation.item.create','item':{
+                    'type':'message','role':'user','content':[{'type':'input_text','text':'请简短告别，说：好的，再见。'}]}})
+                await ws.send_json({'type':'response.create'})
+                frames=[]
+                transcript=''
+                async for msg in ws:
+                    if msg.type!=aiohttp.WSMsgType.TEXT:raise RuntimeError('farewell_socket_closed')
+                    e=json.loads(msg.data)
+                    if e['type']=='error':raise RuntimeError('farewell_provider_error')
+                    if e['type']=='response.audio.delta':
+                        pcm=base64.b64decode(e['delta'])
+                        frames.append(rtc.AudioFrame(data=pcm,sample_rate=24000,num_channels=1,samples_per_channel=len(pcm)//2))
+                    if e['type']=='response.audio_transcript.done':transcript=e.get('transcript','')
+                    if e['type']=='response.done':
+                        if e['response'].get('status')!='completed' or not frames or not transcript:
+                            raise RuntimeError('farewell_incomplete')
+                        return transcript,frames
+        raise RuntimeError('farewell_missing')
 
     async def aclose(self):
         await super().aclose()

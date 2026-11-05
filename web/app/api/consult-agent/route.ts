@@ -6,7 +6,10 @@ import {
   template,
   speechSettings,
   generateReport,
+  speechReady,
+  voiceRoute,
 } from "@/lib/consultation";
+import { phoneRequest } from "@/lib/phone";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 let initialized: Promise<void> | undefined;
@@ -51,7 +54,7 @@ export async function POST(req: NextRequest) {
           );
       }
       const found = await db.query(
-        "UPDATE consult_sessions SET voice_state='active' WHERE room_name=$1 AND status='active' AND mode IN ('voice','phone') RETURNING id,title,mode",
+        "UPDATE consult_sessions SET voice_state='active' WHERE room_name=$1 AND status='active' AND mode IN ('voice','phone') RETURNING id,title,mode,voice_route",
         [b.room],
       );
       if (!found.rowCount)
@@ -61,10 +64,8 @@ export async function POST(req: NextRequest) {
         );
       const speech = await speechSettings(true);
       if (
-        !speech.configured ||
         !speech.key ||
-        !speech.asr_test?.ok ||
-        !speech.tts_test?.ok
+        !speechReady(speech, voiceRoute(found.rows[0].voice_route))
       )
         return NextResponse.json(
           { error: "Speech not ready" },
@@ -79,12 +80,20 @@ export async function POST(req: NextRequest) {
       );
     }
     const found = await db.query(
-      "SELECT id,status,voice_state FROM consult_sessions WHERE room_name=$1",
+      "SELECT id,status,voice_state,mode FROM consult_sessions WHERE room_name=$1",
       [b.room],
     );
     if (!found.rowCount)
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     const s = found.rows[0];
+    if (b.action === "release") {
+      if (s.mode !== "phone") return NextResponse.json({ phone: false, requested: false });
+      await phoneRequest("hangup", { request_id: s.id });
+      const call = await phoneRequest("call?id=" + s.id);
+      return NextResponse.json({ phone: true, requested: true,
+        channel_closed: ["ended", "failed"].includes(call.state),
+        handset_confirmed: false });
+    }
     if (b.action === "heartbeat")
       return NextResponse.json({
         ending: s.voice_state === "ending",
