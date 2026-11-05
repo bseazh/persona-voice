@@ -6,7 +6,7 @@ import os
 logger = logging.getLogger(__name__)
 
 def preflight_enabled():
-    value = os.getenv('VOICE_PREFLIGHT', 'on')
+    value = os.getenv('VOICE_PREFLIGHT', 'off')
     if value not in ('on', 'off'):
         raise ValueError('VOICE_PREFLIGHT must be on or off')
     return value == 'on'

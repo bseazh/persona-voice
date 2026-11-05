@@ -57,6 +57,22 @@ for repeat in (1, 2):
         lines += [f'|{n}|{a+b:.3f}|{t["interrupted"]}|' if a is not None and b is not None else f'|{n}|N/A|{t["interrupted"]}|']
     lines += ['']
     lines += ['人工听感：待接听方反馈。ASR 最终转录与轮次收尾重叠，原始数据单独保留，不重复相加。', '']
+    if speculative:
+        finals = [e['payload'] for e in data['events'] if e['kind']=='voice.asr_final']
+        hints = [e['payload'] for e in data['events'] if e['kind']=='voice.asr_preflight']
+        lines += ['### 真实 FINAL 与用户停说时间核对', '',
+                  '按同一服务器时钟匹配停说后4秒内唯一 FINAL；多候选或缺测记N/A。提示长度差异仅用于定位，不能据此推算采用率。', '',
+                  '|用户轮次|停说至真实 FINAL|本轮提示数|末提示字符数|FINAL字符数|', '|---|---|---|---|---|']
+        for i,u in enumerate(users,1):
+            stop = u.get('stopped_speaking_at')
+            candidates = [f for f in finals if stop is not None and 0 <= f['at']-stop <= 4]
+            if len(candidates) != 1:
+                lines += [f'|{i}|N/A|—|—|—|']; continue
+            f = candidates[0]
+            h = [h for h in hints if u.get('started_speaking_at',f['at']) <= h['at'] <= f['at']]
+            lines += [f"|{i}|{f['at']-stop:.3f}|{len(h)}|{h[-1]['characters'] if h else '—'}|{f['characters']}|"]
+        done = [e['payload'] for e in data['events'] if e['kind']=='voice.speech_done']
+        lines += ['',f"完成的 speech handle 中 {sum(p.get('scheduled') is False for p in done)} 个没有进入播放调度；scheduled=true 也不代表手机已听到完整回复。", '']
 lines += ['## 比较限制', '', '每阶段至少两通有效电话才进入下一阶段。失败拨号单列；不补造数据。提前生成可能与收尾重叠，负残差不当成负耗时或强制计算百分比。原始事件保存在同目录 JSON 中。']
 target = directory / (f'{stage}-{selected}-report.md' if selected else f'{stage}-report.md')
 target.write_text('\n'.join(lines)+'\n', encoding='utf-8')
