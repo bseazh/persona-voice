@@ -24,11 +24,13 @@ fixture=importlib.util.module_from_spec(spec);spec.loader.exec_module(fixture)
 async def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--ending',choices=['natural','operator'],default='natural')
-    parser.add_argument('--route',choices=['qwen-realtime','pipeline-mimo'],default='qwen-realtime')
+    parser.add_argument('--route',choices=['qwen-realtime','doubao-realtime','pipeline-mimo'],default='qwen-realtime')
+    parser.add_argument('--followup',action='store_true',help='Add a second real audio question before ending')
     args=parser.parse_args()
     origin='https://phone.hehaizhao.site'
     question=await fixture.fixture('请告诉我一天有多少个小时。')
     goodbye=await fixture.fixture('今天就聊到这里吧，再见，请挂断电话。')
+    followup=await fixture.fixture('请告诉我二加二等于几，只回答数字。') if args.followup else None
     room=rtc.Room()
     tasks=[]
     state={'agent':'','audio_frames':0,'disconnected':False}
@@ -83,6 +85,16 @@ async def main():
                 if any(m['role']=='assistant' and ('24' in m['text'] or '二十四' in m['text']) for m in current['messages']):break
                 await asyncio.sleep(.5)
             else:raise RuntimeError('answer_not_persisted')
+            if followup is not None:
+                await until(lambda:state['agent']=='listening')
+                count=len(current['messages'])
+                await send(followup)
+                for _ in range(60):
+                    current=await request('session?id='+sid)
+                    if any(m['role']=='assistant' and m['text'].strip('。！.! ') in ('4','四') for m in current['messages'][count:]):break
+                    await asyncio.sleep(.5)
+                else:raise RuntimeError('followup_answer_not_persisted')
+                report['followup_answer_confirmed']=True
             end_start=time.monotonic()
             if args.ending=='natural':await send(goodbye)
             else:await request('voice-end',{'id':sid})
@@ -99,7 +111,7 @@ async def main():
                 'farewell_count':sum(e['kind']=='voice.farewell_played' for e in events),
                 'error_kinds':[e['kind'] for e in events if e['kind'] in ('voice.error','voice.farewell_failed')],
                 'room_release':[e['payload'] for e in events if e['kind']=='voice.room_release']})
-            released = any(e.get('confirmed') for e in report['room_release']) if args.route == 'qwen-realtime' else state['disconnected']
+            released = any(e.get('confirmed') for e in report['room_release']) if args.route in ('qwen-realtime','doubao-realtime') else state['disconnected']
             report['benchmark_config']=[e['payload'] for e in events if e['kind']=='voice.benchmark_config']
             report['ok']=current['status']=='closed' and current['voice_route']==args.route and report['farewell_count']==1 and not report['error_kinds'] and released
         except Exception as error:

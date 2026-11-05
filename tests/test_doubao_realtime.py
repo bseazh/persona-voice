@@ -50,6 +50,23 @@ class AdapterTests(unittest.IsolatedAsyncioTestCase):
         self.session.handle({'type':'response.output_text.delta','response_id':'a','delta':'重复'})
         self.assertEqual(len(self.events),1);self.assertIsNone(self.session.generation)
 
+    async def test_real_provider_untagged_audio_uses_started_boundary(self):
+        delta={'type':'response.output_audio.delta','delta':base64.b64encode(b'\x01\x00'*320).decode()}
+        self.session.handle(delta)
+        self.assertEqual(len(self.events),0)
+        self.session.handle({'type':'response.output_audio.started','response_id':'old'})
+        self.session.handle(delta)
+        self.assertEqual(self.session.generation['id'],'old')
+        self.session.interrupt()
+        self.session.handle(delta)
+        self.assertIsNone(self.session.generation)
+        self.session.handle({'type':'response.output_audio.started','response_id':'old'})
+        self.session.handle(delta)
+        self.assertIsNone(self.session.generation)
+        self.session.handle({'type':'response.output_audio.started','response_id':'new'})
+        self.session.handle(delta)
+        self.assertEqual(self.session.generation['id'],'new')
+
     async def test_audio_pacing_and_mute_after_gap(self):
         sent=[]
         async def send(kind,**fields):sent.append((kind,time.monotonic(),fields))
@@ -101,7 +118,8 @@ class SessionTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(e['session']['audio']['output']['format']['type'],'pcm_s16le')
                     await ws.send_json({'type':'session.created','session':{'id':'test'}})
                 elif e['type']=='speech_text_buffer.commit':
-                    await ws.send_json({'type':'response.output_audio.delta','response_id':'r1','delta':base64.b64encode(b'\x01\x00'*960).decode()})
+                    await ws.send_json({'type':'response.output_audio.started','response_id':'r1'})
+                    await ws.send_json({'type':'response.output_audio.delta','delta':base64.b64encode(b'\x01\x00'*960).decode()})
                     await ws.send_json({'type':'response.output_audio.done','response_id':'r1'})
                 elif e['type']=='input_audio_buffer.append' and not answered:
                     answered=True
@@ -109,7 +127,8 @@ class SessionTests(unittest.IsolatedAsyncioTestCase):
                     await ws.send_json({'type':'conversation.item.input_audio_transcription.completed','item_id':'u1','transcript':'二加二是多少'})
                     await ws.send_json({'type':'response.output_text.delta','response_id':'r2','delta':'四。'})
                     await ws.send_json({'type':'response.output_text.done','response_id':'r2','text':'四。'})
-                    await ws.send_json({'type':'response.output_audio.delta','response_id':'r2','delta':base64.b64encode(b'\x01\x00'*960).decode()})
+                    await ws.send_json({'type':'response.output_audio.started','response_id':'r2'})
+                    await ws.send_json({'type':'response.output_audio.delta','delta':base64.b64encode(b'\x01\x00'*960).decode()})
                     await ws.send_json({'type':'response.output_audio.done','response_id':'r2'})
                 elif e['type']=='session.close':
                     await ws.send_json({'type':'session.closed'});break

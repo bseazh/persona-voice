@@ -166,6 +166,7 @@ class DoubaoSession(llm.RealtimeSession):
         self.resampler = None
         self.partial = bytearray()
         self.generation = None
+        self.audio_response = None
         self.blocked = set()
         self.pending = None
         self.pending_text = None
@@ -199,7 +200,8 @@ class DoubaoSession(llm.RealtimeSession):
         if self.failed or self.closed: return
         self.failed = error
         self.ready.set()
-        self.audit('provider_failure', error_type=type(error).__name__)
+        self.audit('provider_failure', error_type=type(error).__name__,
+                   code=str(error)[:80] if isinstance(error,DoubaoError) else None)
         self.emit('error', llm.RealtimeModelError(timestamp=time.time(), label=self.owner.label,
             error=DoubaoError('Seeduplex connection failed; verify key, entitlement and audio input'), recoverable=False))
         if self.pending and not self.pending.done():
@@ -327,9 +329,17 @@ class DoubaoSession(llm.RealtimeSession):
             self.audit('realtime_event', type=kind)
         elif kind.startswith('response.output_'):
             rid = e.get('response_id')
+            if kind == 'response.output_audio.started':
+                # Real Seeduplex audio deltas omit response_id. Bind them only
+                # to the immediately preceding identified audio-start boundary.
+                self.audio_response = rid if rid and rid not in self.blocked and not self.owner.muted else None
+                return
+            if kind == 'response.output_audio.delta' and not rid:
+                rid = self.audio_response
+                if not rid:
+                    self.audit('realtime_audio_dropped', reason='no_active_audio_boundary')
+                    return
             if not rid:
-                # Official started example allows an empty ID; wait for identified data.
-                if kind.endswith('.started'): return
                 raise DoubaoError('missing_response_id')
             if rid in self.blocked or self.owner.muted: return
             if kind in ('response.output_audio.delta', 'response.output_text.delta'):
@@ -347,6 +357,7 @@ class DoubaoSession(llm.RealtimeSession):
                     g['text'].send_nowait(e.get('delta', ''))
                     g['transcript'] += e.get('delta', '')
             elif kind == 'response.output_audio.done' and self.generation and self.generation['id'] == rid:
+                if self.audio_response == rid: self.audio_response = None
                 self.blocked.add(rid)
                 self.end_generation()
             elif kind == 'response.output_text.done' and self.generation and self.generation['id'] == rid:
@@ -384,6 +395,7 @@ class DoubaoSession(llm.RealtimeSession):
         while not self.audio.empty(): self.audio.get_nowait()
 
     def interrupt(self):
+        self.audio_response = None
         if self.generation:
             self.blocked.add(self.generation['id'])
             self.end_generation()
