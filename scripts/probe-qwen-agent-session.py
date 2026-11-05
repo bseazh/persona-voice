@@ -4,6 +4,7 @@ No phone is dialled. Room deletion is captured locally, not sent to LiveKit.
 This cannot verify handset playback or actual SIM hangup.
 """
 import asyncio
+import argparse
 import importlib.util
 import json
 import logging
@@ -72,6 +73,9 @@ class Sink(io.AudioOutput):
 
 
 async def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--ending-text',help='Replay a final transcript into the controller (not an ASR test)')
+    args=parser.parse_args()
     events=[]
     model=QwenRealtime()
     session=AgentSession(llm=model)
@@ -142,7 +146,10 @@ async def main():
                    for m in messages[interruption_message_index:]):break
             await asyncio.sleep(.1)
         measurements['interrupted_before_ending']=sum(h.interrupted for h in handles)
-        await send('今天就聊到这里吧，再见，请挂断电话。')
+        if args.ending_text:
+            controller.transcript(args.ending_text)
+        else:
+            await send('今天就聊到这里吧，再见，请挂断电话。')
         try:await asyncio.wait_for(ended.wait(),25)
         except asyncio.TimeoutError:errors.append('ending_timeout')
     finally:
@@ -156,6 +163,7 @@ async def main():
     if 'release_requested_at' in measurements and 'ending_at' in measurements:
         measurements['ending_to_room_release_seconds']=round(measurements.pop('release_requested_at')-measurements.pop('ending_at'),3)
     result['measurements']=measurements
+    result['ending_input']='replayed_final_transcript' if args.ending_text else 'synthetic_audio'
     result['answer_correct']=any(m['role']=='assistant' and ('24' in m['text'] or '二十四' in m['text']) for m in messages)
     result['interrupt_answer_correct']=any(m['role']=='assistant' and ('4' in m['text'] or '四' in m['text']) for m in messages[interruption_message_index:])
     result['ok']=ended.is_set() and not errors and result['answer_correct'] and result['interrupt_answer_correct'] and measurements.get('input_overlapped_active_playback') and measurements.get('interrupted_before_ending',0)>0 and sum(e['type']=='farewell_played' for e in events)==1

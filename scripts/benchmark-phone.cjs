@@ -6,6 +6,8 @@ const root = path.resolve(__dirname, '..');
 const base = 'https://phone.hehaizhao.site/api/consult/';
 const stage = process.argv[2];
 const repeat = process.argv[3];
+const voiceRoute = process.argv[4] || 'pipeline';
+if (!['pipeline','qwen-realtime'].includes(voiceRoute)) throw Error('Unknown voice route');
 if (!/^[a-z0-9-]+$/.test(stage || '') || !/^[12]$/.test(repeat || '')) throw Error('Usage: node scripts/benchmark-phone.cjs baseline 1');
 (async () => {
   const dir = path.join(root, 'BigApple输出', 'latency-benchmark');
@@ -22,11 +24,11 @@ if (!/^[a-z0-9-]+$/.test(stage || '') || !/^[12]$/.test(repeat || '')) throw Err
     if(!r.ok)throw Error(route+' status '+r.status);
     return r.json();
   }
-  const line=await api('line');
+  const line=await api('line?route='+voiceRoute);
   console.log(JSON.stringify({ready:line.dial_enabled,checks:line.checks}));
   if(!line.dial_enabled)throw Error('Line unavailable; no call made');
   if(line.caller!=='13660199577' || line.recipient!=='19221659824')throw Error('Configured phone pair changed; inspect before dialing');
-  const request={requestId:crypto.randomUUID(),number:line.recipient,sim:2,template:'free-chat-v1',consent:true,title:`时延测试 ${stage} 第${repeat}通`};
+  const request={requestId:crypto.randomUUID(),number:line.recipient,sim:2,template:'free-chat-v1',consent:true,voiceRoute,title:`时延测试 ${stage} 第${repeat}通`};
   fs.writeFileSync(prefix+'.request.json',JSON.stringify({stage,repeat,request,at:new Date().toISOString()},null,2),{mode:0o600,flag:'wx'});
   const result=await api('phone-dial',request);
   console.log('Submitted '+result.id);

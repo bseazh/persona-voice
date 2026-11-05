@@ -30,7 +30,7 @@ class EndingTests(unittest.IsolatedAsyncioTestCase):
     async def test_duplicate_end_plays_once_and_release_waits_for_playout(self):
         played=asyncio.Event()
         c=self.setup_controller(played.wait)
-        c.transcript('请挂断电话。');c.transcript('再见');c.request_end('operator_end')
+        c.transcript('嗯好的好的那就这样拜。');c.transcript('再见');c.request_end('operator_end')
         await asyncio.sleep(.01)
         self.delete.assert_not_awaited()
         played.set();await c.end_task

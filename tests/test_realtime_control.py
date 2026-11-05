@@ -58,6 +58,12 @@ class EndCommandTests(unittest.TestCase):
                      '好的，那今天就聊到这里吧','今天就聊到这里吧，再见，请挂断电话。','现在不方便'):
             with self.subTest(text=text):self.assertTrue(explicit_end(text))
 
+    def test_actual_phone_colloquial_goodbye(self):
+        for text in ('嗯好的好的那就这样拜。','好，那就先这样，拜拜。','那就这样再见'):
+            with self.subTest(text=text):self.assertTrue(explicit_end(text))
+        for text in ('那就这样吧','不要说那就这样拜','如果我说那就这样拜会怎样','这样拜师可以吗'):
+            with self.subTest(text=text):self.assertFalse(explicit_end(text))
+
     def test_mentions_and_negations_do_not_end_calls(self):
         for text in ('不要挂断电话','还没说完，再见只是举例','如果我说再见会怎样',
                      '“再见”是什么意思','请不要说再见','再见面的时候聊','今天就聊到这里吧可以这么说吗'):
