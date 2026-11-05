@@ -15,13 +15,15 @@
 
 |阶段|Issue|当前状态|
 |---|---|---|
-|01 基线|[#1](https://github.com/bseazh/persona-voice/issues/1)|已分别补录两次未接通评论；新线路两通有效测试待完成|
+|01 基线|[#1](https://github.com/bseazh/persona-voice/issues/1)|新线路一通7轮完整计时＋一通短样本；仍缺第二通足量基线，三次新尝试均已发布评论|
 |02 识别收尾|[#2](https://github.com/bseazh/persona-voice/issues/2)|待基线完成后实施并测试两次|
 |03 TTS 双向流|[#3](https://github.com/bseazh/persona-voice/issues/3)|待上一阶段完成|
 |04 提前生成|[#4](https://github.com/bseazh/persona-voice/issues/4)|待上一阶段完成|
 |05 简短发言|[#5](https://github.com/bseazh/persona-voice/issues/5)|待上一阶段完成|
 
 ## 当前实际结果
+
+新线路测试已产生真实数据：一通 7 个完整回复，均值 2.879 秒；另一通仅 1 个非中断完整回复，3.550 秒，另记录两次中断。两通均结束语播放后归档。详情、逐轮占比和各次 Issue 评论见 [基线结果](01-baseline.md)。此前新线路第 1 次尝试因安卓允许名单遗漏被 403 拒绝，现已修复。基线未达到两通各至少 5 轮，四项优化仍未实施。
 
 2026-11-05 旧线路尝试两次，均 `phone_not_connected`，各有 0 个有效轮次。拨号等待约 34.37 秒，仅表示未接通等待，不能当作 AI 响应延迟。没有测得 ASR、LLM、TTS 分段耗时及占比。
 

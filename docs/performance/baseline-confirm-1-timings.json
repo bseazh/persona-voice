@@ -1,0 +1,145 @@
+{
+  "session_id": "65203bf6-78c9-43f3-9c33-943ec51fe21e",
+  "source": "consultation API / SDK timing v1",
+  "application_revision": "ee37753",
+  "status": "closed",
+  "reason": "farewell_played",
+  "events": [
+    {
+      "kind": "phone.state",
+      "payload": {
+        "at": 1793847230.018498,
+        "state": "queued",
+        "reason": "submitted"
+      }
+    },
+    {
+      "kind": "phone.state",
+      "payload": {
+        "at": 1793847232.00415,
+        "state": "dialing",
+        "reason": "dialing"
+      }
+    },
+    {
+      "kind": "phone.state",
+      "payload": {
+        "at": 1793847236.071159,
+        "state": "connected",
+        "reason": "connected"
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_e7d0b8d79463",
+        "interrupted": true,
+        "metrics": {
+          "llm_node_ttfs": 0.6763507546856999,
+          "llm_node_ttft": 0.49264948070049286,
+          "tts_node_ttfb": 0.5525271110236645,
+          "playback_latency": 0.0002713203430175781,
+          "started_speaking_at": 1793847237.7739875,
+          "stopped_speaking_at": 1793847243.0999959
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "user",
+        "message_id": "item_6b4bc2beb008",
+        "interrupted": false,
+        "metrics": {
+          "end_of_turn_delay": 1.072533369064331,
+          "started_speaking_at": 1793847238.2411819,
+          "stopped_speaking_at": 1793847242.0248988,
+          "transcription_delay": 1.0717151165008545,
+          "on_user_turn_completed_delay": 9.272713214159012e-05
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_a7fab9bbd5fc",
+        "interrupted": true,
+        "metrics": {
+          "e2e_latency": 2.6029160022735596,
+          "llm_node_ttfs": 1.0267305662855506,
+          "llm_node_ttft": 0.810079263523221,
+          "tts_node_ttfb": 0.4870911315083504,
+          "playback_latency": 0.00020051002502441406,
+          "started_speaking_at": 1793847244.6278148,
+          "stopped_speaking_at": 1793847256.8521168
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "user",
+        "message_id": "item_d9ea445aca65",
+        "interrupted": false,
+        "metrics": {
+          "end_of_turn_delay": 2.024597644805908,
+          "started_speaking_at": 1793847249.6931303,
+          "stopped_speaking_at": 1793847254.8248339,
+          "transcription_delay": 2.023916482925415,
+          "on_user_turn_completed_delay": 0.00013818778097629547
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_e7c3afa35dba",
+        "interrupted": false,
+        "metrics": {
+          "e2e_latency": 3.5496811866760254,
+          "llm_node_ttfs": 0.9346783244982362,
+          "llm_node_ttft": 0.7077451385557652,
+          "tts_node_ttfb": 0.574048531241715,
+          "playback_latency": 0.0002315044403076172,
+          "started_speaking_at": 1793847258.374515,
+          "stopped_speaking_at": 1793847265.8475747
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_af0f98228d99",
+        "interrupted": false,
+        "metrics": {
+          "tts_node_ttfb": 0.4989745207130909,
+          "playback_latency": 0.000179290771484375,
+          "started_speaking_at": 1793847266.3611321,
+          "stopped_speaking_at": 1793847269.782342
+        }
+      }
+    },
+    {
+      "kind": "voice.farewell_played",
+      "payload": {}
+    },
+    {
+      "kind": "voice.closed",
+      "payload": {
+        "reason": "farewell_played"
+      }
+    },
+    {
+      "kind": "phone.state",
+      "payload": {
+        "at": 1793847272.4474964,
+        "state": "ended",
+        "reason": "channel_closed"
+      }
+    }
+  ]
+}

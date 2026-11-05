@@ -1,0 +1,25 @@
+{
+  "session_id": "9a143ab9-1d5c-44f8-95a3-4450f965fa92",
+  "source": "consultation API / SDK timing v1",
+  "application_revision": "ee37753",
+  "status": "closed",
+  "reason": "phone_not_connected",
+  "events": [
+    {
+      "kind": "phone.state",
+      "payload": {
+        "at": 1793846900.810077,
+        "state": "queued",
+        "reason": "submitted"
+      }
+    },
+    {
+      "kind": "phone.state",
+      "payload": {
+        "at": 1793846946.9316003,
+        "state": "failed",
+        "reason": "not_connected"
+      }
+    }
+  ]
+}

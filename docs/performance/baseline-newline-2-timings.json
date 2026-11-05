@@ -1,0 +1,331 @@
+{
+  "session_id": "c98783d7-7f0c-4cf5-a88f-5550a597f50a",
+  "source": "consultation API / SDK timing v1",
+  "application_revision": "ee37753",
+  "status": "closed",
+  "reason": "farewell_played",
+  "events": [
+    {
+      "kind": "phone.state",
+      "payload": {
+        "at": 1793847060.1459904,
+        "state": "queued",
+        "reason": "submitted"
+      }
+    },
+    {
+      "kind": "phone.state",
+      "payload": {
+        "at": 1793847060.52941,
+        "state": "dialing",
+        "reason": "dialing"
+      }
+    },
+    {
+      "kind": "phone.state",
+      "payload": {
+        "at": 1793847068.636448,
+        "state": "connected",
+        "reason": "connected"
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "user",
+        "message_id": "item_8238d81a2555",
+        "interrupted": false,
+        "metrics": {
+          "end_of_turn_delay": 1.2618165016174316,
+          "started_speaking_at": 1793847068.8856993,
+          "stopped_speaking_at": 1793847069.2708616,
+          "transcription_delay": 1.2610182762145996,
+          "on_user_turn_completed_delay": 9.286310523748398e-05
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_1fd4aa07d9aa",
+        "interrupted": false,
+        "metrics": {
+          "e2e_latency": 2.563657522201538,
+          "llm_node_ttfs": 0.6563157727941871,
+          "llm_node_ttft": 0.41652865428477526,
+          "tts_node_ttfb": 0.5362903326749802,
+          "playback_latency": 0.00019598007202148438,
+          "started_speaking_at": 1793847071.8345191,
+          "stopped_speaking_at": 1793847083.1962087
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "user",
+        "message_id": "item_afcb3eec042f",
+        "interrupted": false,
+        "metrics": {
+          "end_of_turn_delay": 2.012007236480713,
+          "started_speaking_at": 1793847084.9353201,
+          "stopped_speaking_at": 1793847085.2194889,
+          "transcription_delay": 2.0112547874450684,
+          "on_user_turn_completed_delay": 8.566305041313171e-05
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_5571810a6e19",
+        "interrupted": false,
+        "metrics": {
+          "e2e_latency": 3.248058319091797,
+          "llm_node_ttfs": 0.777710254304111,
+          "llm_node_ttft": 0.5852024732157588,
+          "tts_node_ttfb": 0.45198425743728876,
+          "playback_latency": 0.0001926422119140625,
+          "started_speaking_at": 1793847088.4675472,
+          "stopped_speaking_at": 1793847094.3691254
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "user",
+        "message_id": "item_79b43cf12190",
+        "interrupted": false,
+        "metrics": {
+          "end_of_turn_delay": 0.45067381858825684,
+          "started_speaking_at": 1793847095.8850281,
+          "stopped_speaking_at": 1793847100.2821271,
+          "transcription_delay": 0.09099435806274414,
+          "on_user_turn_completed_delay": 9.927432984113693e-05
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_bcb843104e71",
+        "interrupted": false,
+        "metrics": {
+          "e2e_latency": 2.0875446796417236,
+          "llm_node_ttfs": 1.1158201042562723,
+          "llm_node_ttft": 1.0207411786541343,
+          "tts_node_ttfb": 0.5156858591362834,
+          "playback_latency": 0.00021958351135253906,
+          "started_speaking_at": 1793847102.3696718,
+          "stopped_speaking_at": 1793847107.0708091
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "user",
+        "message_id": "item_23f24c10621b",
+        "interrupted": false,
+        "metrics": {
+          "end_of_turn_delay": 1.9054412841796875,
+          "started_speaking_at": 1793847108.1858575,
+          "stopped_speaking_at": 1793847109.419543,
+          "transcription_delay": 1.904677152633667,
+          "on_user_turn_completed_delay": 8.247978985309601e-05
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_2344a5201b59",
+        "interrupted": false,
+        "metrics": {
+          "e2e_latency": 3.539501667022705,
+          "llm_node_ttfs": 1.157649302855134,
+          "llm_node_ttft": 0.8863410083577037,
+          "tts_node_ttfb": 0.469975252635777,
+          "playback_latency": 0.0001926422119140625,
+          "started_speaking_at": 1793847112.9590447,
+          "stopped_speaking_at": 1793847118.3808687
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "user",
+        "message_id": "item_1bfbc5872ea8",
+        "interrupted": false,
+        "metrics": {
+          "end_of_turn_delay": 1.3673722743988037,
+          "started_speaking_at": 1793847119.7357266,
+          "stopped_speaking_at": 1793847123.1202273,
+          "transcription_delay": 1.3666987419128418,
+          "on_user_turn_completed_delay": 8.98437574505806e-05
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_59ced6848639",
+        "interrupted": false,
+        "metrics": {
+          "e2e_latency": 2.8952136039733887,
+          "llm_node_ttfs": 1.0448136366903782,
+          "llm_node_ttft": 0.8128679255023599,
+          "tts_node_ttfb": 0.47724834363907576,
+          "playback_latency": 0.00020885467529296875,
+          "started_speaking_at": 1793847126.015441,
+          "stopped_speaking_at": 1793847131.437041
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "user",
+        "message_id": "item_2d95ec7ed9ec",
+        "interrupted": false,
+        "metrics": {
+          "end_of_turn_delay": 0.512540340423584,
+          "started_speaking_at": 1793847132.9850497,
+          "stopped_speaking_at": 1793847138.7201936,
+          "transcription_delay": 0,
+          "on_user_turn_completed_delay": 5.766097456216812e-05
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "user",
+        "message_id": "item_e527a50b465e",
+        "interrupted": false,
+        "metrics": {
+          "on_user_turn_completed_delay": 8.688867092132568e-05
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_7fcdcd5cab3d",
+        "interrupted": false,
+        "metrics": {
+          "llm_node_ttfs": 0.8669309765100479,
+          "llm_node_ttft": 0.688153825700283,
+          "tts_node_ttfb": 0.5051045250147581,
+          "playback_latency": 0.00020360946655273438,
+          "started_speaking_at": 1793847143.0732546,
+          "stopped_speaking_at": 1793847149.2950084
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "user",
+        "message_id": "item_be77805c1858",
+        "interrupted": false,
+        "metrics": {
+          "end_of_turn_delay": 1.7739062309265137,
+          "started_speaking_at": 1793847150.1861587,
+          "stopped_speaking_at": 1793847152.119513,
+          "transcription_delay": 1.7732577323913574,
+          "on_user_turn_completed_delay": 7.604528218507767e-05
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_27ff35419a73",
+        "interrupted": false,
+        "metrics": {
+          "e2e_latency": 3.362565755844116,
+          "llm_node_ttfs": 1.0342387044802308,
+          "llm_node_ttft": 0.8530866010114551,
+          "tts_node_ttfb": 0.5491067739203572,
+          "playback_latency": 0.0001761913299560547,
+          "started_speaking_at": 1793847155.4820788,
+          "stopped_speaking_at": 1793847159.1438828
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "user",
+        "message_id": "item_38a1bb60ea72",
+        "interrupted": false,
+        "metrics": {
+          "end_of_turn_delay": 1.0911238193511963,
+          "started_speaking_at": 1793847160.5859814,
+          "stopped_speaking_at": 1793847163.369568,
+          "transcription_delay": 1.0904748439788818,
+          "on_user_turn_completed_delay": 9.052176028490067e-05
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_6c6ef8bee288",
+        "interrupted": false,
+        "metrics": {
+          "e2e_latency": 2.457381248474121,
+          "llm_node_ttfs": 0.7929805787280202,
+          "llm_node_ttft": 0.44984262250363827,
+          "tts_node_ttfb": 0.5673094326630235,
+          "playback_latency": 0.0002148151397705078,
+          "started_speaking_at": 1793847165.8269494,
+          "stopped_speaking_at": 1793847169.7279973
+        }
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_e5d28d73358c",
+        "interrupted": false,
+        "metrics": {
+          "tts_node_ttfb": 0.5717495791614056,
+          "playback_latency": 0.00018072128295898438,
+          "started_speaking_at": 1793847170.3128505,
+          "stopped_speaking_at": 1793847174.214736
+        }
+      }
+    },
+    {
+      "kind": "voice.farewell_played",
+      "payload": {}
+    },
+    {
+      "kind": "voice.closed",
+      "payload": {
+        "reason": "farewell_played"
+      }
+    },
+    {
+      "kind": "phone.state",
+      "payload": {
+        "at": 1793847177.7688453,
+        "state": "ended",
+        "reason": "channel_closed"
+      }
+    }
+  ]
+}
