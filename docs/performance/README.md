@@ -18,7 +18,7 @@
 |---|---|---|
 |01 基线|[#1](https://github.com/bseazh/persona-voice/issues/1)|新线路一通7轮完整计时＋一通短样本；仍缺第二通足量基线，三次新尝试均已发布评论|
 |02 识别收尾|[#2](https://github.com/bseazh/persona-voice/issues/2)|已按用户要求先优化后测试两通，未见收益，恢复baseline；7轮和4轮样本已留存|
-|03 TTS 双向流|[#3](https://github.com/bseazh/persona-voice/issues/3)|待上一阶段完成|
+|03 TTS 双向流|[#3](https://github.com/bseazh/persona-voice/issues/3)|duplex-v1已部署，两通均值2.910/2.537秒，第二通3轮样本偏少，保留实现待听感反馈|
 |04 提前生成|[#4](https://github.com/bseazh/persona-voice/issues/4)|待上一阶段完成|
 |05 简短发言|[#5](https://github.com/bseazh/persona-voice/issues/5)|待上一阶段完成|
 
@@ -45,4 +45,4 @@
 
 `scripts/benchmark-phone.cjs` 保存私人原始事件，`scripts/report-phone-latency.py` 生成本地逐轮 Markdown 报告；提交前只提取白名单计时字段到本目录，禁止提交 API Key、管理员密码或完整健康转录。GitHub 提交失败时必须标记“待同步”，保留会话 ID 并核对有无重复评论，不得声称已发布。
 
-当前完成第一项的本地收尾实验，未验收为优化成功；TTS、提前生成与简短发言优化尚未实施。SDK计时持续保留，两个语音结束流程测试通过。
+当前完成本地收尾实验并回退；TTS双向流式已实现并测试两通。提前生成与简短发言优化尚未实施。SDK计时持续保留，两个语音结束流程测试和两个TTS适配器测试通过。

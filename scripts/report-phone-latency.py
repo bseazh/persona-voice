@@ -18,6 +18,8 @@ for repeat in (1, 2):
     data = json.loads(file.read_text(encoding='utf-8'))
     session = data['session']
     lines += [f"会话：{data['id']}；结束原因：{session.get('reason')}；消息数：{len(session.get('messages', []))}。", '']
+    config = next((e['payload'] for e in data['events'] if e['kind']=='voice.benchmark_config'), {})
+    lines += [f"代码记录：{data.get('revision', '未记录')}；模板：{config.get('template', '未记录')}；TTS：{config.get('tts_provider', '未记录')} / {config.get('tts_model', '未记录')} / {config.get('tts_voice', '未记录')} / {config.get('tts_mode', '未记录')}。", '']
     timings = [e['payload'] for e in data['events'] if e['kind'] == 'voice.turn_timing']
     users = [t['metrics'] for t in timings if t['role'] == 'user']
     lines += ['|轮次|总等待|ASR最终转录（重叠）|收尾/占比|首字/占比|首字后切句/占比|合成首音频/占比|其他调度/占比|中断|', '|---|---|---|---|---|---|---|---|---|']
@@ -42,6 +44,12 @@ for repeat in (1, 2):
     if totals:
         lines += [f'非中断有效计时轮次 {len(totals)}；均值 {statistics.mean(totals):.3f}；中位数 {statistics.median(totals):.3f}；最大 {max(totals):.3f}。', '']
     else: lines += ['没有有效的完整回复计时样本；不能据此评价优化收益。', '']
+    lines += ['### 模型开始至首音频（避免切句/TTS计时迁移造成误读）', '',
+              '|助手轮次|首段送TTS＋TTS首音频（秒）|中断|', '|---|---|---|']
+    for n,t in enumerate((t for t in timings if t['role']=='assistant'),1):
+        m=t['metrics']; a,b=m.get('llm_node_ttfs'),m.get('tts_node_ttfb')
+        lines += [f'|{n}|{a+b:.3f}|{t["interrupted"]}|' if a is not None and b is not None else f'|{n}|N/A|{t["interrupted"]}|']
+    lines += ['']
     lines += ['人工听感：待接听方反馈。ASR 最终转录与轮次收尾重叠，原始数据单独保留，不重复相加。', '']
 lines += ['## 比较限制', '', '每阶段至少两通有效电话才进入下一阶段。失败拨号单列；不补造数据。提前生成可能与收尾重叠，负残差不当成负耗时或强制计算百分比。原始事件保存在同目录 JSON 中。']
 target = directory / (f'{stage}-{selected}-report.md' if selected else f'{stage}-report.md')
