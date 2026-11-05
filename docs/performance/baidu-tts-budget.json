@@ -1,0 +1,45 @@
+{
+  "source": "Two existing Baidu Lite calls; offline estimate, not standalone TTS or billing measurement",
+  "character_rule": "Unicode code points including punctuation/space; not a verified provider billing rule",
+  "calls": [
+    {
+      "call": 1,
+      "session_id": "324659e5-5f3e-4352-948b-37a62b04fd6b",
+      "connected_seconds": 121.26274085044861,
+      "assistant_messages": 10,
+      "assistant_interrupted": 5,
+      "transcript_codepoints": 318,
+      "transcript_without_punctuation_space": 282,
+      "output_interval_count": 10,
+      "agent_output_seconds": 59.10891532897949
+    },
+    {
+      "call": 2,
+      "session_id": "2916e80d-6639-4f4f-b838-33f18009c835",
+      "connected_seconds": 123.26515793800354,
+      "assistant_messages": 6,
+      "assistant_interrupted": 1,
+      "transcript_codepoints": 401,
+      "transcript_without_punctuation_space": 360,
+      "output_interval_count": 6,
+      "agent_output_seconds": 77.03974413871765
+    }
+  ],
+  "connected_minutes": 4.075464979807536,
+  "transcript_codepoints": 719,
+  "transcript_characters_per_call_minute": 176.42158712254593,
+  "agent_output_seconds": 136.14865946769714,
+  "agent_output_fraction": 0.5567817011566566,
+  "streaming_tts_cny_per_call_minute_estimate": {
+    "basic": 0.03528431742450919,
+    "premium": 0.0476338285230874,
+    "large_model_and_ultimate": 0.06174755549289107
+  },
+  "price_source": "https://cloud.baidu.com/doc/SPEECH/s/Ql9misjot",
+  "price_checked": "2026-11-05",
+  "limitations": [
+    "Saved transcript may omit generated but interrupted speech; does not measure submitted TTS text.",
+    "Agent output timing is not handset playout.",
+    "No ASR/LLM/telephony/search/server costs included."
+  ]
+}
