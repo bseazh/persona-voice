@@ -33,8 +33,10 @@ class DoubaoError(RuntimeError):
 
 
 class Connection:
-    def __init__(self, key, voice=VOICE):
+    def __init__(self, key, voice=VOICE, audit=None):
         self.key, self.voice = key, voice
+        self.audit = audit
+        self.event_shapes = set()
         self.client = None
         self.ws = None
         self.logid = None
@@ -48,6 +50,26 @@ class Connection:
         if message.type != aiohttp.WSMsgType.TEXT:
             raise DoubaoError('connection_closed')
         event = json.loads(message.data)
+        if self.audit:
+            # Keep provider numeric usage only, including close-time events.
+            def numeric(value):
+                if isinstance(value, dict):
+                    return {k: numeric(v) for k, v in value.items()
+                            if isinstance(v, (dict, int, float)) and not isinstance(v, bool)}
+                return value
+            for field, source in [('event', event), ('response', event.get('response'))]:
+                if isinstance(source, dict) and isinstance(source.get('usage'), dict):
+                    self.audit('doubao_usage', {'event_type': event.get('type'),
+                        'event_id': event.get('event_id'), 'source': field,
+                        'response_id': source.get('id') or event.get('response_id'),
+                        'usage': numeric(source['usage'])})
+            shape = (event.get('type'), tuple(sorted(event)))
+            if shape not in self.event_shapes:
+                self.event_shapes.add(shape)
+                response = event.get('response')
+                self.audit('doubao_event_shape', {'event_type': event.get('type'),
+                    'fields': list(event), 'usage_present': isinstance(event.get('usage'), dict)
+                    or (isinstance(response, dict) and isinstance(response.get('usage'), dict))})
         if event.get('type') == 'error':
             code = str(event.get('error', {}).get('code', event.get('status_code', 'unknown')))
             raise DoubaoError('provider_error_' + ''.join(c for c in code if c.isalnum() or c == '_')[:64])
@@ -84,9 +106,9 @@ class Connection:
             await self.client.close()
 
 
-async def synthesize_control(key, text, voice=VOICE):
+async def synthesize_control(key, text, voice=VOICE, audit=None):
     """Bounded real-provider speech for greeting/tests/farewell, not canned audio."""
-    conn = Connection(key, voice)
+    conn = Connection(key, voice, audit=audit)
     frames = []
     try:
         async with asyncio.timeout(25):
@@ -143,7 +165,7 @@ class DoubaoRealtime(llm.RealtimeModel):
             session.interrupt()
 
     async def farewell(self):
-        text, frames, _ = await synthesize_control(self.key, FAREWELL, self.voice)
+        text, frames, _ = await synthesize_control(self.key, FAREWELL, self.voice, audit=self.audit)
         return text, frames
 
     async def aclose(self):
@@ -154,7 +176,7 @@ class DoubaoSession(llm.RealtimeSession):
     def __init__(self, model):
         super().__init__(model)
         self.owner = model
-        self.conn = Connection(model.key, model.voice)
+        self.conn = Connection(model.key, model.voice, audit=model.audit)
         self._chat_ctx = llm.ChatContext()
         self._tools = llm.ToolContext([])
         self.instructions = ''

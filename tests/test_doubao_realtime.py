@@ -1,6 +1,8 @@
 """Protocol regressions; local fake provider is not a real-service acceptance test."""
 import asyncio
 import base64
+import json
+from types import SimpleNamespace
 from pathlib import Path
 import sys
 import time
@@ -28,6 +30,20 @@ class AdapterTests(unittest.IsolatedAsyncioTestCase):
     async def test_output_requests_pcm16_not_float32(self):
         self.assertEqual(d.config('x')['audio']['output']['format']['type'],'pcm_s16le')
         self.assertEqual(d.config('x')['audio']['input']['format']['rate'],16000)
+
+    async def test_usage_audit_retains_numbers_without_text_and_deduplicates_shapes(self):
+        seen=[]
+        conn=d.Connection('test-only',audit=lambda kind,payload:seen.append((kind,payload)))
+        event={'type':'response.done','response':{'id':'r1','usage':{
+            'total_tokens':17,'details':{'audio_tokens':12,'text':'private'},'secret':'private'}}}
+        conn.ws=SimpleNamespace(receive=AsyncMock(return_value=SimpleNamespace(
+            type=d.aiohttp.WSMsgType.TEXT,data=json.dumps(event))))
+        await conn.recv();await conn.recv()
+        usage=[p for k,p in seen if k=='doubao_usage']
+        self.assertEqual(usage[0]['usage'],{'total_tokens':17,'details':{'audio_tokens':12}})
+        self.assertEqual(usage[0]['response_id'],'r1')
+        self.assertEqual(len([k for k,p in seen if k=='doubao_event_shape']),1)
+        self.assertNotIn('private',json.dumps(seen))
 
     async def test_stale_audio_and_cancel_ack_cannot_reopen_or_close_new_response(self):
         self.session.handle({'type':'response.output_text.delta','response_id':'old','delta':'旧回复'})
