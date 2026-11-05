@@ -20,11 +20,19 @@ class RealtimeController(VoiceController):
     def __init__(self,ctx,session,journal,model):
         super().__init__(ctx,session,journal)
         self.model=model
+        self.route=getattr(model,'route','qwen-realtime')
         self.end_task=None
         self.close_lock=asyncio.Lock()
         model.transport.on_transcript=self.transcript
 
     def benchmark_config(self):
+        if self.route=='doubao-realtime':
+            return {'stage':'doubao-duplex-v1','route':self.route,
+                'model':self.model.model,'voice':self.model.voice,
+                'input_sample_rate':16000,'output_sample_rate':24000,
+                'endpoint':'agent_room_output_not_handset','measurement_version':3,
+                'turn_boundary':'provider_transcription_completed',
+                'separate_asr_llm_tts_metrics':False,'preemptive_generation':False}
         return {'stage':'qwen-duplex-v1','route':'qwen-realtime',
             'model':MODEL,'voice':'longanqian','input_sample_rate':16000,
             'output_sample_rate':24000,'server_vad_silence_ms':500,
@@ -42,7 +50,7 @@ class RealtimeController(VoiceController):
         # race with the async cancellation and goodbye work.
         self.model.mute_responses()
         self.session.input.set_audio_enabled(False)
-        self.journal.emit('ending',{'reason':reason,'route':'qwen-realtime'})
+        self.journal.emit('ending',{'reason':reason,'route':self.route})
         self.end_task=asyncio.create_task(self._finish())
 
     async def _finish(self):
@@ -55,7 +63,7 @@ class RealtimeController(VoiceController):
             handle=self.session.say(text,audio=audio())
             await asyncio.wait_for(handle.wait_for_playout(),15)
             if handle.interrupted or handle.exception():raise RuntimeError('farewell_not_played')
-            self.journal.emit('farewell_played',{'text':text,'provider':MODEL})
+            self.journal.emit('farewell_played',{'text':text,'provider':getattr(self.model,'provider',MODEL)})
         except asyncio.CancelledError:
             raise
         except Exception as error:

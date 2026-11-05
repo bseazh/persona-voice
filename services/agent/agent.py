@@ -16,6 +16,7 @@ from turn_profile import turn_profile
 from preflight import preflight_enabled
 from qwen_realtime import QwenRealtime
 from realtime_voice import RealtimeAssistant, RealtimeController
+from doubao_realtime import DoubaoRealtime
 
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / ".env")
@@ -71,8 +72,9 @@ async def persona_voice(ctx: JobContext) -> None:
             await journal.close()
             raise
     speech_to_text=None
-    if route=='qwen-realtime':
-        model=QwenRealtime(key=speech.get('key'),audit=journal.emit if journal else None)
+    if route in ('qwen-realtime','doubao-realtime'):
+        model=(DoubaoRealtime(key=speech['key'],voice=speech['voice'],audit=journal.emit if journal else None)
+               if route=='doubao-realtime' else QwenRealtime(key=speech.get('key'),audit=journal.emit if journal else None))
         session=AgentSession(llm=model)
         ctx.add_shutdown_callback(model.aclose)
     elif route=='pipeline':
@@ -113,10 +115,10 @@ async def persona_voice(ctx: JobContext) -> None:
                 speech_to_text.set_user_speaking(event.new_state == 'speaking')
 
     attach_phone_transcript(session, ctx.room.name)
-    controller=(RealtimeController(ctx,session,journal,model) if route=='qwen-realtime'
+    controller=(RealtimeController(ctx,session,journal,model) if route in ('qwen-realtime','doubao-realtime')
                 else VoiceController(ctx,session,journal)) if journal else None
     if controller:controller.attach()
-    assistant=RealtimeAssistant() if route=='qwen-realtime' else ConsultationAssistant(controller) if controller else PersonaAssistant()
+    assistant=RealtimeAssistant() if route in ('qwen-realtime','doubao-realtime') else ConsultationAssistant(controller) if controller else PersonaAssistant()
     await session.start(agent=assistant, room=ctx.room)
     session.generate_reply(
         instructions="请简短介绍你是AI小禾，可以自由聊天，会保存文字转录和对话摘要，询问是否方便开始。不要提出健康或睡眠调查。只说一两句话。" if consultation else "请用一句自然的中文主动打招呼，介绍你叫小禾，然后问用户今天想聊什么。"

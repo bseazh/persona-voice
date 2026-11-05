@@ -4,7 +4,7 @@ import {
   db,
   initDB,
   template,
-  speechSettings,
+  routeSpeechSettings,
   generateReport,
   speechReady,
   voiceRoute,
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
           { error: "Session unavailable" },
           { status: 409 },
         );
-      const speech = await speechSettings(true);
+      const speech = await routeSpeechSettings(voiceRoute(found.rows[0].voice_route), true);
       if (
         !speech.key ||
         !speechReady(speech, voiceRoute(found.rows[0].voice_route))
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           ...found.rows[0],
-          speech: { key: speech.key, workspace: speech.workspace },
+          speech: { key: speech.key, workspace: speech.workspace, voice: speech.voice },
         },
         { headers: { "Cache-Control": "no-store" } },
       );

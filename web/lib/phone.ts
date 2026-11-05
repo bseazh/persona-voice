@@ -2,7 +2,7 @@ import "server-only";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { RoomServiceClient } from "livekit-server-sdk";
-import { db, speechSettings, UserError, type VoiceRoute } from "./consultation";
+import { db, routeSpeechSettings, UserError, type VoiceRoute } from "./consultation";
 const execute = promisify(execFile);
 
 export async function phoneRequest(path: string, body?: object) {
@@ -81,7 +81,7 @@ export async function phoneReadiness(route: VoiceRoute = "pipeline") {
       rtc = true;
     })(),
   ]);
-  const speech = await speechSettings();
+  const speech = await routeSpeechSettings(route);
   const checks = [
     {
       id: "console",
@@ -112,7 +112,11 @@ export async function phoneReadiness(route: VoiceRoute = "pipeline") {
           ? "进程运行、房间服务可访问"
           : "检查 Agent 或 LiveKit 服务",
     },
-    ...(route === "qwen-realtime" ? [{
+    ...(route === "doubao-realtime" ? [{
+      id: "realtime", label: "豆包 Seeduplex 实时语音",
+      ok: !!(speech.configured && speech.test?.ok),
+      detail: "需先保存豆包 Key 并通过连接与音频测试；真实识别和电话体验另行验收",
+    }] : route === "qwen-realtime" ? [{
       id: "realtime", label: "Qwen 原生实时语音",
       ok: !!speech.configured,
       detail: "已保存语音 Key；模型权限与实时可用性在连接时验证，不依赖独立 ASR/TTS 测试",

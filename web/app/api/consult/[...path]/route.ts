@@ -25,6 +25,8 @@ import {
   limit,
   voiceRoute,
   speechReady,
+  doubaoSettings,
+  routeSpeechSettings,
 } from "@/lib/consultation";
 import { toWav } from "@/lib/qwen-asr";
 import { phoneReadiness, phoneRequest } from "@/lib/phone";
@@ -69,6 +71,7 @@ export async function GET(req: NextRequest) {
         ).rows,
       );
     if (path === "speech") return json(await speechSettings());
+    if (path === "doubao") return json(await doubaoSettings());
     if (path === "line") return json(await phoneReadiness(voiceRoute(req.nextUrl.searchParams.get("route"))));
     const id = req.nextUrl.searchParams.get("id") || "";
     if (path === "session") return json(await session(id));
@@ -141,6 +144,19 @@ async function synthesize(key: string, workspace: string): Promise<Buffer> {
         );
     });
     child.stdin.end(JSON.stringify({ key, workspace }));
+  });
+}
+async function testDoubao(key: string, voice: string): Promise<{ok: boolean; audio?: string; logid?: string; error_type?: string}> {
+  const root = process.env.PERSONA_PROJECT_ROOT || "/home/ubuntu/Project/persona-voice";
+  return new Promise((resolve, reject) => {
+    const child = spawn(root + "/.venv-agent/bin/python", [root + "/scripts/test-doubao-realtime.py"], {stdio:["pipe","pipe","pipe"]});
+    const chunks: Buffer[] = []; let size = 0;
+    const timer = setTimeout(() => { child.kill("SIGKILL"); reject(new UserError("豆包连接测试超时",502)); },35000);
+    child.stdout.on("data", (c: Buffer) => { size += c.length; if(size > 3*1024*1024) child.kill("SIGKILL"); else chunks.push(c); });
+    child.stderr.resume(); child.stdin.on("error",()=>{});
+    child.on("error",()=>{clearTimeout(timer);reject(new UserError("豆包测试组件未就绪",503));});
+    child.on("close",()=>{clearTimeout(timer);try { resolve(JSON.parse(Buffer.concat(chunks).toString("utf8"))); } catch { reject(new UserError("豆包测试未返回有效结果",502)); }});
+    child.stdin.end(JSON.stringify({key,voice}));
   });
 }
 export async function POST(req: NextRequest) {
@@ -278,6 +294,36 @@ export async function POST(req: NextRequest) {
     if (Number(req.headers.get("content-length")) > 12000)
       throw new UserError("请求过大");
     const b = await req.json();
+    if (path === "doubao") {
+      if (typeof b.key !== "string" || b.key.length < 16 || b.key.length > 512 || /\s/.test(b.key))
+        throw new UserError("请输入火山语音 API Key");
+      if (!['zh_male_xiaotian_jupiter_bigtts','zh_female_vv_jupiter_bigtts'].includes(b.voice))
+        throw new UserError("请选择支持的豆包音色");
+      const value = {encrypted:seal(b.key),voice:b.voice,revision:randomUUID(),test:null};
+      await db.query("INSERT INTO consult_settings VALUES('doubao',$1,now()) ON CONFLICT(id) DO UPDATE SET value=$1,updated_at=now()",[JSON.stringify(value)]);
+      await event(null,"doubao.saved",{revision:value.revision});
+      return json({ok:true});
+    }
+    if (path === "test-doubao") {
+      await limit("doubao-tests",6,600);
+      const config = await doubaoSettings(true);
+      if (!config.key) throw new UserError("请先保存豆包 Key");
+      await db.query("UPDATE consult_settings SET value=jsonb_set(value,'{test}','null'::jsonb) WHERE id='doubao' AND value->>'revision'=$1",[config.revision]);
+      await event(null,"doubao.test_started",{revision:config.revision});
+      let result;
+      try { result = await testDoubao(config.key,config.voice); }
+      catch {
+        await event(null,"doubao.test_failed",{revision:config.revision,reason:"probe_unavailable_or_timeout"});
+        throw new UserError("豆包连接测试失败或超时，请核对 Key、权限与服务器网络后重试",502);
+      }
+      const ok = result.ok === true && typeof result.audio === "string" && result.audio.length > 1000;
+      const record = {ok,at:new Date().toISOString(),scope:"session_and_prescribed_audio_not_asr_or_phone"};
+      const saved = await db.query("UPDATE consult_settings SET value=jsonb_set(value,'{test}',$1::jsonb),updated_at=now() WHERE id='doubao' AND value->>'revision'=$2",[JSON.stringify(record),config.revision]);
+      if (!saved.rowCount) throw new UserError("配置已更换，请重新测试",409);
+      await event(null,ok ? "doubao.test_succeeded" : "doubao.test_failed",{revision:config.revision,scope:record.scope});
+      if (!ok) throw new UserError("豆包测试失败：请核对火山语音 Key、Seeduplex 权限、音色和额度",502);
+      return json({ok:true,audio:result.audio,scope:record.scope});
+    }
     if (path === "phone-dial") {
       const route = voiceRoute(b.voiceRoute);
       if (
@@ -418,9 +464,9 @@ export async function POST(req: NextRequest) {
       const mode = b.mode === "voice" ? "voice" : "text";
       const route = voiceRoute(b.voiceRoute);
       if (mode === "voice") {
-        const speech = await speechSettings();
+        const speech = await routeSpeechSettings(route);
         if (!speechReady(speech, route))
-          throw new UserError(route === "qwen-realtime" ? "请先保存千问语音 Key" : "请先在语音配置完成 ASR 和 TTS 测试");
+          throw new UserError(route === "doubao-realtime" ? "请先在语音配置保存豆包 Key 并完成连接与音频测试" : route === "qwen-realtime" ? "请先保存千问语音 Key" : "请先在语音配置完成 ASR 和 TTS 测试");
       }
       const title =
         typeof b.title === "string"
