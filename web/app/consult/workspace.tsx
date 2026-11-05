@@ -19,7 +19,7 @@ type Consultation = {
   status: string;
   mode: "text" | "voice" | "phone";
   voice_state?: string;
-  voice_route?: "pipeline" | "pipeline-mimo" | "pipeline-mimo-all" | "qwen-realtime" | "doubao-realtime";
+  voice_route?: "pipeline" | "pipeline-mimo" | "pipeline-mimo-all" | "qwen-realtime" | "doubao-realtime" | "baidu-realtime";
   phone_state?: string;
   created_at: string;
   ended_at?: string;
@@ -375,6 +375,7 @@ export default function Workspace() {
                         <option value="pipeline-mimo-all">实验路线 · MiMo ASR + DeepSeek + MiMo TTS</option>
                         <option value="qwen-realtime">新路线 · Qwen 原生全双工（试用）</option>
                         <option value="doubao-realtime">新路线 · 豆包 Seeduplex 全双工（待验收）</option>
+                        <option value="baidu-realtime">新路线 · 百度 Lite（请先说话）</option>
                       </select>
                     </label>}
                     <p>自由选择话题，支持连续问答、插话和随时结束。三条语音路线独立选择。</p>
@@ -404,7 +405,7 @@ export default function Workspace() {
                           ? "创建语音咨询"
                           : "开始真实文字咨询"}
                     </button>
-                    <small>{mode === "voice" && voiceRoute === "doubao-realtime" ? "由豆包实时语音直接回答，请先在语音配置保存并测试豆包 Key。" : mode === "voice" && voiceRoute === "qwen-realtime" ? "由 Qwen 实时语音直接回答，使用已保存的千问 Key。" : "由 DeepSeek 生成回答，非预设回复。"}</small>
+                    <small>{mode === "voice" && voiceRoute === "baidu-realtime" ? "百度 Lite 直接语音回答，请先说话；此版不应用咨询模板指令，可用结束按钮退出。" : mode === "voice" && voiceRoute === "doubao-realtime" ? "由豆包实时语音直接回答，请先在语音配置保存并测试豆包 Key。" : mode === "voice" && voiceRoute === "qwen-realtime" ? "由 Qwen 实时语音直接回答，使用已保存的千问 Key。" : "由 DeepSeek 生成回答，非预设回复。"}</small>
                   </section>
                   <section>
                     <h2>
@@ -452,7 +453,7 @@ export default function Workspace() {
                   <div>
                     <div className="cw-kicker">LIVE CONSULTATION</div>
                     <h1>{current.title}</h1>
-                    {current.mode !== "text" && <small>{current.voice_route === "pipeline-mimo-all" ? "MiMo ASR + DeepSeek + MiMo TTS" : current.voice_route === "pipeline-mimo" ? "千问 ASR + DeepSeek + MiMo TTS" : current.voice_route === "doubao-realtime" ? "豆包 Seeduplex 全双工" : current.voice_route === "qwen-realtime" ? "Qwen 原生全双工" : "ASR + DeepSeek + TTS"}</small>}
+                    {current.mode !== "text" && <small>{current.voice_route === "baidu-realtime" ? "百度 Lite 端到端语音" : current.voice_route === "pipeline-mimo-all" ? "MiMo ASR + DeepSeek + MiMo TTS" : current.voice_route === "pipeline-mimo" ? "千问 ASR + DeepSeek + MiMo TTS" : current.voice_route === "doubao-realtime" ? "豆包 Seeduplex 全双工" : current.voice_route === "qwen-realtime" ? "Qwen 原生全双工" : "ASR + DeepSeek + TTS"}</small>}
                     <p>
                       {current.mode === "text"
                         ? "文字咨询 · 按轮显示回复"

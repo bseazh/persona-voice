@@ -26,6 +26,11 @@ class RealtimeController(VoiceController):
         model.transport.on_transcript=self.transcript
 
     def benchmark_config(self):
+        if self.route=='baidu-realtime':
+            return {'stage':'baidu-lite-v1','route':self.route,'model':self.model.model,
+                'voice':self.model.voice,'input_sample_rate':16000,'output_sample_rate':24000,
+                'endpoint':'agent_room_output_not_handset','separate_asr_llm_tts_metrics':False,
+                'billing_source':'provider_response_usage_only','custom_instructions_supported':False}
         if self.route=='doubao-realtime':
             return {'stage':'doubao-duplex-v1','route':self.route,
                 'model':self.model.model,'voice':self.model.voice,
@@ -44,6 +49,11 @@ class RealtimeController(VoiceController):
 
     def request_end(self,reason):
         if self.finishing or self.closed:return
+        if self.route=='baidu-realtime':
+            self.finishing=True
+            self.journal.emit('ending',{'reason':reason,'route':self.route,'farewell':'not_requested_unsupported'})
+            self.end_task=asyncio.create_task(self._finish_baidu(reason))
+            return
         self.finishing=True
         self.ending_requested=True
         # Gate provider output synchronously, before the next audio delta can
@@ -52,6 +62,21 @@ class RealtimeController(VoiceController):
         self.session.input.set_audio_enabled(False)
         self.journal.emit('ending',{'reason':reason,'route':self.route})
         self.end_task=asyncio.create_task(self._finish())
+
+    async def _finish_baidu(self,reason):
+        if reason=='explicit_user_end':
+            # Wait for the provider's current answer to be scheduled and played.
+            # Do not claim that this is a prescribed farewell: Lite has no such API.
+            try:
+                async with asyncio.timeout(15):
+                    while self.session.current_speech is None:
+                        await asyncio.sleep(.05)
+                    handle=self.session.current_speech
+                    await handle.wait_for_playout()
+                    self.journal.emit('native_end_reply_played',{'interrupted':handle.interrupted})
+            except Exception:
+                self.journal.emit('native_end_reply_timeout',{})
+        await self.close_room(reason)
 
     async def _finish(self):
         reason='farewell_played'

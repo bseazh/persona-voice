@@ -112,7 +112,11 @@ export async function phoneReadiness(route: VoiceRoute = "pipeline") {
           ? "进程运行、房间服务可访问"
           : "检查 Agent 或 LiveKit 服务",
     },
-    ...(route === "doubao-realtime" ? [{
+    ...(route === "baidu-realtime" ? [{
+      id: "realtime", label: "百度 Lite 实时语音",
+      ok: !!speech.configured,
+      detail: "服务端凭据已配置；接通后请先说话，约一分钟测试由控制台结束",
+    }] : route === "doubao-realtime" ? [{
       id: "realtime", label: "豆包 Seeduplex 实时语音",
       ok: !!(speech.configured && speech.test?.ok),
       detail: "需先保存豆包 Key 并通过连接与音频测试；真实识别和电话体验另行验收",

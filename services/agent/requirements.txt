@@ -3,3 +3,4 @@ dashscope==2.0.3
 livekit-plugins-openai==1.8.10
 livekit-plugins-silero==1.8.10
 python-dotenv==1.2.1
+websockets==15.0.1

@@ -109,6 +109,7 @@ export default function PhoneDial({
               <option value="pipeline-mimo-all">实验路线 · MiMo ASR + DeepSeek + MiMo TTS</option>
               <option value="qwen-realtime">新路线 · Qwen 原生全双工（试用）</option>
               <option value="doubao-realtime">新路线 · 豆包 Seeduplex 全双工（待验收）</option>
+              <option value="baidu-realtime">新路线 · 百度 Lite（接通后请先说话）</option>
             </select>
           </label>
           <label>
