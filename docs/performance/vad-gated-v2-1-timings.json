@@ -1,0 +1,1831 @@
+{
+  "session_id": "84a028fd-15bc-4307-ba82-3c510d2e7bfb",
+  "source": "consultation API / SDK timing v1",
+  "application_revision": "78d08d7a4eea093db8d61d659c91289f2b83907b",
+  "status": "closed",
+  "reason": "participant_disconnected",
+  "events": [
+    {
+      "kind": "phone.state",
+      "payload": {
+        "at": 1793854310.17468,
+        "state": "queued",
+        "reason": "submitted"
+      }
+    },
+    {
+      "kind": "phone.state",
+      "payload": {
+        "at": 1793854310.9077337,
+        "state": "dialing",
+        "reason": "dialing"
+      }
+    },
+    {
+      "kind": "voice.benchmark_config",
+      "payload": {
+        "stage": "baseline",
+        "measurement_version": 1,
+        "clock": "sdk_source_timestamps",
+        "endpoint": "agent_room_output_not_handset",
+        "template": "free-chat-v1",
+        "tts_provider": "DashScope/Qwen",
+        "tts_model": "qwen-audio-3.1-tts-flash",
+        "tts_voice": "longanhuan_v3.1",
+        "tts_sample_rate": 24000,
+        "tts_mode": "duplex-v1",
+        "turn_profile": {
+          "name": "baseline",
+          "vad_silence": 0.5,
+          "endpoint_max": 1.5,
+          "endpoint_min": 0.45
+        },
+        "transcription_timeout": 4,
+        "preemptive_generation": true,
+        "preemptive_tts": false,
+        "preflight_mode": "vad-gated-v2",
+        "preflight_stability_ms": 150,
+        "preflight_min_chars": 6,
+        "preflight_max_candidates": 1,
+        "preemptive_max_speech_duration": 10
+      }
+    },
+    {
+      "kind": "voice.speech_created",
+      "payload": {
+        "at": 1793854316.528822,
+        "speech_id": "speech_5b6f05995f9f",
+        "source": "generate_reply"
+      }
+    },
+    {
+      "kind": "voice.asr_vad_boundary",
+      "payload": {
+        "at": 1793854316.8820338,
+        "speaking": true
+      }
+    },
+    {
+      "kind": "phone.state",
+      "payload": {
+        "at": 1793854317.0061781,
+        "state": "connected",
+        "reason": "connected"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "LLMMetrics",
+        "speech_id": "speech_5b6f05995f9f",
+        "request_id": "e37ca90a-7c9f-4ce4-9c17-0fa7b54cfd4f",
+        "duration": 1.0907938703894615,
+        "ttft": 0.8862094823271036,
+        "prompt_tokens": 588,
+        "completion_tokens": 29,
+        "total_tokens": 617
+      }
+    },
+    {
+      "kind": "voice.generated",
+      "payload": {
+        "at": 1793854317.637697,
+        "elapsed_ms": 1099,
+        "source_message_id": null,
+        "cancelled": false,
+        "status": "generated_not_playback_confirmation"
+      }
+    },
+    {
+      "kind": "voice.asr_vad_boundary",
+      "payload": {
+        "at": 1793854317.7314231,
+        "speaking": false
+      }
+    },
+    {
+      "kind": "voice.asr_final",
+      "payload": {
+        "at": 1793854318.315306,
+        "characters": 2,
+        "request_id": "2c81efe8486a4303921d2895039e86b3",
+        "provisional": false
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.speech_done",
+      "payload": {
+        "at": 1793854319.4257686,
+        "speech_id": "speech_5b6f05995f9f",
+        "scheduled": true,
+        "interrupted": true
+      }
+    },
+    {
+      "kind": "voice.speech_created",
+      "payload": {
+        "at": 1793854319.429526,
+        "speech_id": "speech_17e1062331ef",
+        "source": "generate_reply"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "EOUMetrics",
+        "speech_id": "speech_17e1062331ef"
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "user",
+        "message_id": "item_e6784d740b70",
+        "interrupted": false,
+        "metrics": {
+          "end_of_turn_delay": 1.0978031158447266,
+          "started_speaking_at": 1793854316.7856898,
+          "stopped_speaking_at": 1793854317.2220533,
+          "transcription_delay": 1.097001314163208,
+          "on_user_turn_completed_delay": 0.00015440303832292557
+        }
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "LLMMetrics",
+        "speech_id": "speech_17e1062331ef",
+        "request_id": "6d6f3b48-2e65-4ece-bb4e-74cc302dfccc",
+        "duration": 0.9155745506286621,
+        "ttft": 0.7334130024537444,
+        "prompt_tokens": 554,
+        "completion_tokens": 16,
+        "total_tokens": 570
+      }
+    },
+    {
+      "kind": "voice.generated",
+      "payload": {
+        "at": 1793854320.357613,
+        "elapsed_ms": 922,
+        "source_message_id": "item_e6784d740b70",
+        "cancelled": false,
+        "status": "generated_not_playback_confirmation"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "TTSMetrics",
+        "speech_id": "speech_17e1062331ef",
+        "request_id": "e49ae28bb3b148ca830451f3ed8e3555",
+        "duration": 1.2028238838538527,
+        "ttfb": 0.4804284172132611
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.asr_vad_boundary",
+      "payload": {
+        "at": 1793854322.0321364,
+        "speaking": true
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.asr_vad_boundary",
+      "payload": {
+        "at": 1793854322.7812881,
+        "speaking": false
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_98a59eb43559",
+        "interrupted": false,
+        "metrics": {
+          "e2e_latency": 3.5133910179138184,
+          "llm_node_ttfs": 0.8187121273949742,
+          "llm_node_ttft": 0.7342103496193886,
+          "tts_node_ttfb": 0.48039114847779274,
+          "playback_latency": 0.0003113746643066406,
+          "started_speaking_at": 1793854320.7354443,
+          "stopped_speaking_at": 1793854327.1671574
+        }
+      }
+    },
+    {
+      "kind": "voice.speech_done",
+      "payload": {
+        "at": 1793854327.175983,
+        "speech_id": "speech_17e1062331ef",
+        "scheduled": true,
+        "interrupted": false
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.asr_vad_boundary",
+      "payload": {
+        "at": 1793854327.8313437,
+        "speaking": true
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.asr_vad_boundary",
+      "payload": {
+        "at": 1793854330.1812396,
+        "speaking": false
+      }
+    },
+    {
+      "kind": "voice.asr_preflight",
+      "payload": {
+        "at": 1793854330.1844757,
+        "characters": 11,
+        "request_id": "2c81efe8486a4303921d2895039e86b3",
+        "provisional": true
+      }
+    },
+    {
+      "kind": "voice.speech_created",
+      "payload": {
+        "at": 1793854330.1869125,
+        "speech_id": "speech_ac508cae02e7",
+        "source": "generate_reply"
+      }
+    },
+    {
+      "kind": "voice.generated",
+      "payload": {
+        "at": 1793854330.6209795,
+        "elapsed_ms": 430,
+        "source_message_id": "item_b38a0e0b5baa",
+        "cancelled": true,
+        "status": "generated_not_playback_confirmation"
+      }
+    },
+    {
+      "kind": "voice.speech_done",
+      "payload": {
+        "at": 1793854330.625415,
+        "speech_id": "speech_ac508cae02e7",
+        "scheduled": false,
+        "interrupted": true
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.asr_final",
+      "payload": {
+        "at": 1793854332.9263155,
+        "characters": 13,
+        "request_id": "2c81efe8486a4303921d2895039e86b3",
+        "provisional": false
+      }
+    },
+    {
+      "kind": "voice.speech_created",
+      "payload": {
+        "at": 1793854332.9301217,
+        "speech_id": "speech_e75cf295c7a0",
+        "source": "generate_reply"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "EOUMetrics",
+        "speech_id": "speech_e75cf295c7a0"
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "user",
+        "message_id": "item_2c4df33bd48a",
+        "interrupted": false,
+        "metrics": {
+          "end_of_turn_delay": 3.262497901916504,
+          "started_speaking_at": 1793854321.9358556,
+          "stopped_speaking_at": 1793854329.6716082,
+          "transcription_delay": 3.2583250999450684,
+          "on_user_turn_completed_delay": 7.008202373981476e-05
+        }
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "LLMMetrics",
+        "speech_id": "speech_e75cf295c7a0",
+        "request_id": "e4e18e1f-0eac-4397-837c-7436c7a6d24b",
+        "duration": 0.7970886770635843,
+        "ttft": 0.6074302978813648,
+        "prompt_tokens": 585,
+        "completion_tokens": 29,
+        "total_tokens": 614
+      }
+    },
+    {
+      "kind": "voice.generated",
+      "payload": {
+        "at": 1793854333.7370589,
+        "elapsed_ms": 802,
+        "source_message_id": "item_2c4df33bd48a",
+        "cancelled": false,
+        "status": "generated_not_playback_confirmation"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "TTSMetrics",
+        "speech_id": "speech_e75cf295c7a0",
+        "request_id": "e63570b9db084872857f5dac7ba33e48",
+        "duration": 2.318031626753509,
+        "ttfb": 0.5313100405037403
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_8537b7b4d434",
+        "interrupted": false,
+        "metrics": {
+          "e2e_latency": 4.469486951828003,
+          "llm_node_ttfs": 0.6741649275645614,
+          "llm_node_ttft": 0.6081184223294258,
+          "tts_node_ttfb": 0.5312801133841276,
+          "playback_latency": 0.0002129077911376953,
+          "started_speaking_at": 1793854334.1410952,
+          "stopped_speaking_at": 1793854344.4425337
+        }
+      }
+    },
+    {
+      "kind": "voice.speech_done",
+      "payload": {
+        "at": 1793854344.4515667,
+        "speech_id": "speech_e75cf295c7a0",
+        "scheduled": true,
+        "interrupted": false
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.asr_vad_boundary",
+      "payload": {
+        "at": 1793854346.7812061,
+        "speaking": true
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.asr_vad_boundary",
+      "payload": {
+        "at": 1793854347.9315584,
+        "speaking": false
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.asr_vad_boundary",
+      "payload": {
+        "at": 1793854348.481174,
+        "speaking": true
+      }
+    },
+    {
+      "kind": "voice.asr_final",
+      "payload": {
+        "at": 1793854348.5853353,
+        "characters": 2,
+        "request_id": "2c81efe8486a4303921d2895039e86b3",
+        "provisional": false
+      }
+    },
+    {
+      "kind": "voice.speech_created",
+      "payload": {
+        "at": 1793854348.5891087,
+        "speech_id": "speech_c0e7d56bc329",
+        "source": "generate_reply"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "LLMMetrics",
+        "speech_id": "speech_c0e7d56bc329",
+        "request_id": "765d0d9a-3e20-4615-94f1-916d72cda2ba",
+        "duration": 0.9879351127892733,
+        "ttft": 0.7529612360522151,
+        "prompt_tokens": 620,
+        "completion_tokens": 16,
+        "total_tokens": 636
+      }
+    },
+    {
+      "kind": "voice.generated",
+      "payload": {
+        "at": 1793854349.585188,
+        "elapsed_ms": 992,
+        "source_message_id": "item_e7c52aaebe34",
+        "cancelled": false,
+        "status": "generated_not_playback_confirmation"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.asr_vad_boundary",
+      "payload": {
+        "at": 1793854360.5327735,
+        "speaking": false
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "EOUMetrics",
+        "speech_id": "speech_c0e7d56bc329"
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "user",
+        "message_id": "item_e7c52aaebe34",
+        "interrupted": false,
+        "metrics": {
+          "end_of_turn_delay": 0.5131838321685791,
+          "started_speaking_at": 1793854346.6849372,
+          "stopped_speaking_at": 1793854360.0234182,
+          "transcription_delay": 0,
+          "on_user_turn_completed_delay": 0.00010453443974256516
+        }
+      }
+    },
+    {
+      "kind": "voice.asr_preflight",
+      "payload": {
+        "at": 1793854360.5625339,
+        "characters": 46,
+        "request_id": "2c81efe8486a4303921d2895039e86b3",
+        "provisional": true
+      }
+    },
+    {
+      "kind": "voice.asr_final",
+      "payload": {
+        "at": 1793854361.0213864,
+        "characters": 47,
+        "request_id": "2c81efe8486a4303921d2895039e86b3",
+        "provisional": false
+      }
+    },
+    {
+      "kind": "voice.speech_done",
+      "payload": {
+        "at": 1793854361.0860546,
+        "speech_id": "speech_c0e7d56bc329",
+        "scheduled": true,
+        "interrupted": true
+      }
+    },
+    {
+      "kind": "voice.speech_created",
+      "payload": {
+        "at": 1793854361.0892441,
+        "speech_id": "speech_64f9814cd9c0",
+        "source": "generate_reply"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "EOUMetrics",
+        "speech_id": "speech_64f9814cd9c0"
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "user",
+        "message_id": "item_e688f103e492",
+        "interrupted": false,
+        "metrics": {
+          "on_user_turn_completed_delay": 0.00010685157030820847
+        }
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "LLMMetrics",
+        "speech_id": "speech_64f9814cd9c0",
+        "request_id": "86d16e4b-d735-43ca-b205-b362b1815d30",
+        "duration": 1.6602031560614705,
+        "ttft": 0.587501548230648,
+        "prompt_tokens": 648,
+        "completion_tokens": 47,
+        "total_tokens": 695
+      }
+    },
+    {
+      "kind": "voice.generated",
+      "payload": {
+        "at": 1793854362.7595665,
+        "elapsed_ms": 1665,
+        "source_message_id": "item_e688f103e492",
+        "cancelled": false,
+        "status": "generated_not_playback_confirmation"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "TTSMetrics",
+        "speech_id": "speech_64f9814cd9c0",
+        "request_id": "011f84e4e10c47589ad9a8c73320ff5e",
+        "duration": 2.908935518004,
+        "ttfb": 0.5318404519930482
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_d797c6eaa996",
+        "interrupted": false,
+        "metrics": {
+          "llm_node_ttfs": 0.7015762273222208,
+          "llm_node_ttft": 0.5880076242610812,
+          "tts_node_ttfb": 0.5317902695387602,
+          "playback_latency": 0.0002200603485107422,
+          "started_speaking_at": 1793854362.328526,
+          "stopped_speaking_at": 1793854382.3710802
+        }
+      }
+    },
+    {
+      "kind": "voice.speech_done",
+      "payload": {
+        "at": 1793854382.3791783,
+        "speech_id": "speech_64f9814cd9c0",
+        "scheduled": true,
+        "interrupted": false
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.asr_vad_boundary",
+      "payload": {
+        "at": 1793854383.9313786,
+        "speaking": true
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.asr_vad_boundary",
+      "payload": {
+        "at": 1793854389.9813347,
+        "speaking": false
+      }
+    },
+    {
+      "kind": "voice.asr_preflight",
+      "payload": {
+        "at": 1793854389.9849153,
+        "characters": 21,
+        "request_id": "2c81efe8486a4303921d2895039e86b3",
+        "provisional": true
+      }
+    },
+    {
+      "kind": "voice.speech_created",
+      "payload": {
+        "at": 1793854389.9875846,
+        "speech_id": "speech_4063e894e587",
+        "source": "generate_reply"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.generated",
+      "payload": {
+        "at": 1793854390.19167,
+        "elapsed_ms": 200,
+        "source_message_id": "item_d3ca0bd64703",
+        "cancelled": true,
+        "status": "generated_not_playback_confirmation"
+      }
+    },
+    {
+      "kind": "voice.speech_done",
+      "payload": {
+        "at": 1793854390.1962032,
+        "speech_id": "speech_4063e894e587",
+        "scheduled": false,
+        "interrupted": true
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.asr_final",
+      "payload": {
+        "at": 1793854391.2894087,
+        "characters": 27,
+        "request_id": "2c81efe8486a4303921d2895039e86b3",
+        "provisional": false
+      }
+    },
+    {
+      "kind": "voice.speech_created",
+      "payload": {
+        "at": 1793854391.293386,
+        "speech_id": "speech_77d4c32c42bd",
+        "source": "generate_reply"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "EOUMetrics",
+        "speech_id": "speech_77d4c32c42bd"
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "user",
+        "message_id": "item_94220a83986d",
+        "interrupted": false,
+        "metrics": {
+          "end_of_turn_delay": 1.825591802597046,
+          "started_speaking_at": 1793854383.8350685,
+          "stopped_speaking_at": 1793854389.4719107,
+          "transcription_delay": 1.8212594985961914,
+          "on_user_turn_completed_delay": 0.00011387094855308533
+        }
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "LLMMetrics",
+        "speech_id": "speech_77d4c32c42bd",
+        "request_id": "04d178dd-753c-4ec7-bc0e-04324410ea65",
+        "duration": 0.8557379208505154,
+        "ttft": 0.48145574796944857,
+        "prompt_tokens": 717,
+        "completion_tokens": 47,
+        "total_tokens": 764
+      }
+    },
+    {
+      "kind": "voice.generated",
+      "payload": {
+        "at": 1793854392.1604407,
+        "elapsed_ms": 861,
+        "source_message_id": "item_94220a83986d",
+        "cancelled": false,
+        "status": "generated_not_playback_confirmation"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "TTSMetrics",
+        "speech_id": "speech_77d4c32c42bd",
+        "request_id": "67ae1e2cebfe4d10b17184beee3c8179",
+        "duration": 2.5114891221746802,
+        "ttfb": 0.5709453569725156
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.asr_vad_boundary",
+      "payload": {
+        "at": 1793854404.081179,
+        "speaking": true
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.asr_vad_boundary",
+      "payload": {
+        "at": 1793854410.4814103,
+        "speaking": false
+      }
+    },
+    {
+      "kind": "voice.asr_preflight",
+      "payload": {
+        "at": 1793854410.567233,
+        "characters": 29,
+        "request_id": "2c81efe8486a4303921d2895039e86b3",
+        "provisional": true
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.asr_final",
+      "payload": {
+        "at": 1793854411.1316679,
+        "characters": 30,
+        "request_id": "2c81efe8486a4303921d2895039e86b3",
+        "provisional": false
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_3a728b19defb",
+        "interrupted": true,
+        "metrics": {
+          "e2e_latency": 2.9374327659606934,
+          "llm_node_ttfs": 0.5390094546601176,
+          "llm_node_ttft": 0.4819104513153434,
+          "tts_node_ttfb": 0.5709098931401968,
+          "playback_latency": 0.00027298927307128906,
+          "started_speaking_at": 1793854392.4093435,
+          "stopped_speaking_at": 1793854411.1381793
+        }
+      }
+    },
+    {
+      "kind": "voice.speech_done",
+      "payload": {
+        "at": 1793854411.1478827,
+        "speech_id": "speech_77d4c32c42bd",
+        "scheduled": true,
+        "interrupted": true
+      }
+    },
+    {
+      "kind": "voice.speech_created",
+      "payload": {
+        "at": 1793854411.150678,
+        "speech_id": "speech_b66adcaca729",
+        "source": "generate_reply"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "EOUMetrics",
+        "speech_id": "speech_b66adcaca729"
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "user",
+        "message_id": "item_bad65e06c822",
+        "interrupted": false,
+        "metrics": {
+          "end_of_turn_delay": 1.1643857955932617,
+          "started_speaking_at": 1793854403.9848838,
+          "stopped_speaking_at": 1793854409.972174,
+          "transcription_delay": 1.163506269454956,
+          "on_user_turn_completed_delay": 0.0001254044473171234
+        }
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "LLMMetrics",
+        "speech_id": "speech_b66adcaca729",
+        "request_id": "28cdefbf-394e-40b0-8e49-848792767719",
+        "duration": 0.7903442727401853,
+        "ttft": 0.5817995592951775,
+        "prompt_tokens": 780,
+        "completion_tokens": 25,
+        "total_tokens": 805
+      }
+    },
+    {
+      "kind": "voice.generated",
+      "payload": {
+        "at": 1793854411.9519472,
+        "elapsed_ms": 795,
+        "source_message_id": "item_bad65e06c822",
+        "cancelled": false,
+        "status": "generated_not_playback_confirmation"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "TTSMetrics",
+        "speech_id": "speech_b66adcaca729",
+        "request_id": "418e59067c634209b1375d687b581c07",
+        "duration": 1.7470899755135179,
+        "ttfb": 0.5398988053202629
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_316b484b88d0",
+        "interrupted": false,
+        "metrics": {
+          "e2e_latency": 2.4121856689453125,
+          "llm_node_ttfs": 0.6875321688130498,
+          "llm_node_ttft": 0.582695878110826,
+          "tts_node_ttfb": 0.5398613726720214,
+          "playback_latency": 0.00023651123046875,
+          "started_speaking_at": 1793854412.3843596,
+          "stopped_speaking_at": 1793854421.3754425
+        }
+      }
+    },
+    {
+      "kind": "voice.speech_done",
+      "payload": {
+        "at": 1793854421.3844113,
+        "speech_id": "speech_b66adcaca729",
+        "scheduled": true,
+        "interrupted": false
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.asr_vad_boundary",
+      "payload": {
+        "at": 1793854422.6819603,
+        "speaking": true
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.asr_vad_boundary",
+      "payload": {
+        "at": 1793854428.2315361,
+        "speaking": false
+      }
+    },
+    {
+      "kind": "voice.asr_preflight",
+      "payload": {
+        "at": 1793854428.2350783,
+        "characters": 24,
+        "request_id": "2c81efe8486a4303921d2895039e86b3",
+        "provisional": true
+      }
+    },
+    {
+      "kind": "voice.speech_created",
+      "payload": {
+        "at": 1793854428.2377622,
+        "speech_id": "speech_94f208772f04",
+        "source": "generate_reply"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "LLMMetrics",
+        "speech_id": "speech_94f208772f04",
+        "request_id": "90e7e190-be21-45e5-a267-4d6342e8d430",
+        "duration": 1.174212533980608,
+        "ttft": 0.7701698774471879,
+        "prompt_tokens": 824,
+        "completion_tokens": 78,
+        "total_tokens": 902
+      }
+    },
+    {
+      "kind": "voice.generated",
+      "payload": {
+        "at": 1793854429.4209838,
+        "elapsed_ms": 1178,
+        "source_message_id": "item_3184854df9c0",
+        "cancelled": false,
+        "status": "generated_not_playback_confirmation"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.asr_final",
+      "payload": {
+        "at": 1793854430.3464832,
+        "characters": 25,
+        "request_id": "2c81efe8486a4303921d2895039e86b3",
+        "provisional": false
+      }
+    },
+    {
+      "kind": "voice.speech_created",
+      "payload": {
+        "at": 1793854430.350481,
+        "speech_id": "speech_d065fe25fbb3",
+        "source": "generate_reply"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "EOUMetrics",
+        "speech_id": "speech_d065fe25fbb3"
+      }
+    },
+    {
+      "kind": "voice.speech_done",
+      "payload": {
+        "at": 1793854430.364844,
+        "speech_id": "speech_94f208772f04",
+        "scheduled": false,
+        "interrupted": true
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "user",
+        "message_id": "item_ecf2fc9b10ef",
+        "interrupted": false,
+        "metrics": {
+          "end_of_turn_delay": 2.632211208343506,
+          "started_speaking_at": 1793854422.5856628,
+          "stopped_speaking_at": 1793854427.7221446,
+          "transcription_delay": 2.628105878829956,
+          "on_user_turn_completed_delay": 9.04034823179245e-05
+        }
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "LLMMetrics",
+        "speech_id": "speech_d065fe25fbb3",
+        "request_id": "65d74155-d431-4024-b92a-5c32423e964d",
+        "duration": 0.9755446584895253,
+        "ttft": 0.8318223543465137,
+        "prompt_tokens": 825,
+        "completion_tokens": 13,
+        "total_tokens": 838
+      }
+    },
+    {
+      "kind": "voice.generated",
+      "payload": {
+        "at": 1793854431.3359742,
+        "elapsed_ms": 981,
+        "source_message_id": "item_ecf2fc9b10ef",
+        "cancelled": false,
+        "status": "generated_not_playback_confirmation"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "TTSMetrics",
+        "speech_id": "speech_d065fe25fbb3",
+        "request_id": "97d0a5450582478891abcdd6dc637a5f",
+        "duration": 1.2325965007767081,
+        "ttfb": 0.44834850262850523
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.turn_timing",
+      "payload": {
+        "role": "assistant",
+        "message_id": "item_fc00cc5162ab",
+        "interrupted": false,
+        "metrics": {
+          "e2e_latency": 4.0098536014556885,
+          "llm_node_ttfs": 0.9280044818297029,
+          "llm_node_ttft": 0.8322092136368155,
+          "tts_node_ttfb": 0.44831858295947313,
+          "playback_latency": 0.00023126602172851562,
+          "started_speaking_at": 1793854431.7319982,
+          "stopped_speaking_at": 1793854437.1731904
+        }
+      }
+    },
+    {
+      "kind": "voice.speech_done",
+      "payload": {
+        "at": 1793854437.1816585,
+        "speech_id": "speech_d065fe25fbb3",
+        "scheduled": true,
+        "interrupted": false
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "voice.metrics",
+      "payload": {
+        "type": "VADMetrics"
+      }
+    },
+    {
+      "kind": "phone.state",
+      "payload": {
+        "at": 1793854456.4949312,
+        "state": "ended",
+        "reason": "channel_closed"
+      }
+    },
+    {
+      "kind": "voice.closed",
+      "payload": {
+        "reason": "participant_disconnected"
+      }
+    }
+  ]
+}
