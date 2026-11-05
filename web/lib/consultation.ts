@@ -599,17 +599,20 @@ export async function doubaoSettings(secret = false) {
   return { ...safe, configured: true, ...(secret ? { key: unseal(encrypted) } : {}) };
 }
 export async function routeSpeechSettings(route: VoiceRoute, secret = false) {
+  if (route === "pipeline-mimo-all") return { configured: !!process.env.MIMO_API_KEY,
+    ...(secret ? { key: process.env.MIMO_API_KEY } : {}) };
   if (route === "doubao-realtime") return doubaoSettings(secret);
   const speech = await speechSettings(secret);
   return route === "pipeline-mimo" ? { ...speech, mimo_configured: !!process.env.MIMO_API_KEY } : speech;
 }
-export type VoiceRoute = "pipeline" | "pipeline-mimo" | "qwen-realtime" | "doubao-realtime";
+export type VoiceRoute = "pipeline" | "pipeline-mimo" | "pipeline-mimo-all" | "qwen-realtime" | "doubao-realtime";
 export function voiceRoute(value: unknown): VoiceRoute {
   if (value === undefined || value === null || value === "pipeline") return "pipeline";
-  if (value === "qwen-realtime" || value === "doubao-realtime" || value === "pipeline-mimo") return value;
+  if (value === "qwen-realtime" || value === "doubao-realtime" || value === "pipeline-mimo" || value === "pipeline-mimo-all") return value;
   throw new UserError("未知语音路线");
 }
 export function speechReady(speech: Awaited<ReturnType<typeof speechSettings>>, route: VoiceRoute) {
+  if (route === "pipeline-mimo-all") return !!process.env.MIMO_API_KEY;
   if (route === "pipeline-mimo") return !!(speech.configured && speech.asr_test?.ok && process.env.MIMO_API_KEY);
   if (route === "doubao-realtime") return !!(speech.configured && speech.test?.ok);
   return !!(speech.configured && (route === "qwen-realtime" || (speech.asr_test?.ok && speech.tts_test?.ok)));

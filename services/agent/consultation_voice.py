@@ -181,9 +181,13 @@ class VoiceController:
             'preflight_stability_ms': 150, 'preflight_min_chars': 6,
             'preflight_max_candidates': 1, 'preemptive_max_speech_duration': 10.0}
         config['voice_route'] = getattr(self, 'voice_route', 'pipeline')
-        if config['voice_route'] == 'pipeline-mimo':
+        if config['voice_route'] in ('pipeline-mimo', 'pipeline-mimo-all'):
             config.update(tts_provider='Xiaomi/MiMo', tts_model='mimo-v2.5-tts',
                           tts_voice='mimo_default', tts_mode='sentence-input-sse-output')
+        if config['voice_route'] == 'pipeline-mimo-all':
+            config.update(asr_provider='Xiaomi/MiMo', asr_model='mimo-v2.5-asr',
+                          asr_mode='vad-segmented-batch', preemptive_generation=False,
+                          preflight_mode='off-no-interim-results')
         return config
 
     def attach(self):

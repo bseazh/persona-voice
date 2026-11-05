@@ -12,7 +12,7 @@ VOICE = 'mimo_default'
 URL = 'https://api.xiaomimimo.com/v1/chat/completions'
 
 
-async def pcm_chunks(client, key, text):
+async def pcm_chunks(client, key, text, usage=None):
     """Closing this generator closes the response, including on interruption."""
     body = {'model': MODEL, 'messages': [{'role': 'assistant', 'content': text}],
             'audio': {'format': 'pcm16', 'voice': VOICE}, 'stream': True}
@@ -30,6 +30,8 @@ async def pcm_chunks(client, key, text):
                 finished = True
                 break
             event = json.loads(raw)
+            if usage is not None and event.get('usage'):
+                usage.update({k:v for k,v in event['usage'].items() if isinstance(v,(int,float))})
             if event.get('error'):
                 raise APIConnectionError('MiMo TTS provider error')
             for choice in event.get('choices', []):
@@ -50,12 +52,13 @@ async def pcm_chunks(client, key, text):
 
 
 class MiMoTTS(tts.TTS):
-    def __init__(self):
+    def __init__(self, *, audit=None):
         # Input is NOT duplex. LiveKit StreamAdapter handles sentence boundaries.
         super().__init__(capabilities=tts.TTSCapabilities(streaming=False),
                          sample_rate=24000, num_channels=1)
         self.key = os.environ['MIMO_API_KEY']
         self._http = None
+        self.audit = audit
 
     @property
     def model(self):
@@ -83,10 +86,16 @@ class MiMoSpeech(tts.ChunkedStream):
     async def _run(self, output_emitter):
         output_emitter.initialize(request_id=uuid.uuid4().hex, sample_rate=24000,
                                   num_channels=1, mime_type='audio/pcm', frame_size_ms=20)
-        chunks = pcm_chunks(self._tts.client(), self._tts.key, self._input_text)
+        usage = {}
+        received = 0
+        complete = False
+        attempt = uuid.uuid4().hex
+        chunks = pcm_chunks(self._tts.client(), self._tts.key, self._input_text, usage)
         try:
             async for chunk in chunks:
+                received += len(chunk)
                 output_emitter.push(chunk)
+            complete = True
         except APIConnectionError:
             raise
         except Exception as error:
@@ -94,3 +103,9 @@ class MiMoSpeech(tts.ChunkedStream):
             raise APIConnectionError(f'MiMo TTS failed ({type(error).__name__})') from None
         finally:
             await chunks.aclose()
+            if self._tts.audit:
+                self._tts.audit('provider_usage', {'provider': self._tts.provider,
+                    'model': MODEL, 'attempt_id': attempt, 'phase': 'output_closed',
+                    'input_characters': len(self._input_text), 'received_audio_seconds': received / 48000,
+                    'complete': complete, 'usage': usage,
+                    'billing_basis': 'received_audio_not_invoice'})

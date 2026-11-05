@@ -122,15 +122,15 @@ export async function phoneReadiness(route: VoiceRoute = "pipeline") {
       detail: "已保存语音 Key；模型权限与实时可用性在连接时验证，不依赖独立 ASR/TTS 测试",
     }] : [{
       id: "asr",
-      label: "千问 ASR",
-      ok: !!(speech.configured && speech.asr_test?.ok),
-      detail: "依据当前 Key 的最近录音测试；不保证供应商此刻可用",
+      label: route === "pipeline-mimo-all" ? "MiMo ASR（VAD 分段）" : "千问 ASR",
+      ok: route === "pipeline-mimo-all" ? !!process.env.MIMO_API_KEY : !!(speech.configured && speech.asr_test?.ok),
+      detail: route === "pipeline-mimo-all" ? "服务端凭据已配置；分段上传，非持续音频输入" : "依据当前 Key 的最近录音测试；不保证供应商此刻可用",
     },
     {
       id: "tts",
-      label: route === "pipeline-mimo" ? "MiMo TTS" : "千问 TTS",
-      ok: route === "pipeline-mimo" ? !!process.env.MIMO_API_KEY : !!(speech.configured && speech.tts_test?.ok),
-      detail: route === "pipeline-mimo" ? "服务端 MiMo 凭据已配置；权限、额度与实时可用性在调用时验证" : "依据当前 Key 的最近合成测试",
+      label: route.startsWith("pipeline-mimo") ? "MiMo TTS" : "千问 TTS",
+      ok: route.startsWith("pipeline-mimo") ? !!process.env.MIMO_API_KEY : !!(speech.configured && speech.tts_test?.ok),
+      detail: route.startsWith("pipeline-mimo") ? "服务端 MiMo 凭据已配置；权限、额度与实时可用性在调用时验证" : "依据当前 Key 的最近合成测试",
     },
     {
       id: "llm",

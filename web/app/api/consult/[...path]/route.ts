@@ -466,7 +466,7 @@ export async function POST(req: NextRequest) {
       if (mode === "voice") {
         const speech = await routeSpeechSettings(route);
         if (!speechReady(speech, route))
-          throw new UserError(route === "pipeline-mimo" ? "请先完成千问 ASR 测试并在服务端配置 MiMo Key" : route === "doubao-realtime" ? "请先在语音配置保存豆包 Key 并完成连接与音频测试" : route === "qwen-realtime" ? "请先保存千问语音 Key" : "请先在语音配置完成 ASR 和 TTS 测试");
+          throw new UserError(route === "pipeline-mimo-all" ? "请先在服务端配置 MiMo Key" : route === "pipeline-mimo" ? "请先完成千问 ASR 测试并在服务端配置 MiMo Key" : route === "doubao-realtime" ? "请先在语音配置保存豆包 Key 并完成连接与音频测试" : route === "qwen-realtime" ? "请先保存千问语音 Key" : "请先在语音配置完成 ASR 和 TTS 测试");
       }
       const title =
         typeof b.title === "string"

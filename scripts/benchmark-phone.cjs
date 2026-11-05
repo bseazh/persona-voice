@@ -7,7 +7,7 @@ const base = 'https://phone.hehaizhao.site/api/consult/';
 const stage = process.argv[2];
 const repeat = process.argv[3];
 const voiceRoute = process.argv[4] || 'pipeline';
-if (!['pipeline','pipeline-mimo','qwen-realtime','doubao-realtime'].includes(voiceRoute)) throw Error('Unknown voice route');
+if (!['pipeline','pipeline-mimo','pipeline-mimo-all','qwen-realtime','doubao-realtime'].includes(voiceRoute)) throw Error('Unknown voice route');
 if (!/^[a-z0-9-]+$/.test(stage || '') || !/^[12]$/.test(repeat || '')) throw Error('Usage: node scripts/benchmark-phone.cjs baseline 1');
 (async () => {
   const dir = path.join(root, 'BigApple输出', 'latency-benchmark');

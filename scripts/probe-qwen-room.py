@@ -24,7 +24,7 @@ fixture=importlib.util.module_from_spec(spec);spec.loader.exec_module(fixture)
 async def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--ending',choices=['natural','operator'],default='natural')
-    parser.add_argument('--route',choices=['qwen-realtime','doubao-realtime','pipeline-mimo'],default='qwen-realtime')
+    parser.add_argument('--route',choices=['qwen-realtime','doubao-realtime','pipeline-mimo','pipeline-mimo-all'],default='qwen-realtime')
     parser.add_argument('--followup',action='store_true',help='Add a second real audio question before ending')
     args=parser.parse_args()
     origin='https://phone.hehaizhao.site'

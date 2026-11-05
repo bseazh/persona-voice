@@ -11,6 +11,7 @@ from qwen_stt import QwenSTT
 from qwen_streaming_stt import QwenStreamingSTT
 from qwen_tts import QwenTTS
 from mimo_tts import MiMoTTS
+from mimo_stt import MiMoSTT
 from phone_transcript import attach_phone_transcript
 from consultation_voice import VoiceJournal, VoiceController, ConsultationAssistant
 from turn_profile import turn_profile
@@ -78,11 +79,15 @@ async def persona_voice(ctx: JobContext) -> None:
                if route=='doubao-realtime' else QwenRealtime(key=speech.get('key'),audit=journal.emit if journal else None))
         session=AgentSession(llm=model)
         ctx.add_shutdown_callback(model.aclose)
-    elif route in ('pipeline', 'pipeline-mimo'):
+    elif route in ('pipeline', 'pipeline-mimo', 'pipeline-mimo-all'):
         profile = turn_profile()
-        synthesis = MiMoTTS() if route == 'pipeline-mimo' else QwenTTS(**speech)
+        synthesis = MiMoTTS(audit=journal.emit if journal else None) if route in ('pipeline-mimo','pipeline-mimo-all') else QwenTTS(**speech)
         ctx.add_shutdown_callback(synthesis.aclose)
-        speech_to_text = QwenStreamingSTT(audit=journal.emit if journal else None, **speech) if consultation or os.getenv('ASR_MODE', 'streaming') == 'streaming' else QwenSTT()
+        if route == 'pipeline-mimo-all':
+            speech_to_text = MiMoSTT(audit=journal.emit if journal else None)
+            ctx.add_shutdown_callback(speech_to_text.aclose)
+        else:
+            speech_to_text = QwenStreamingSTT(audit=journal.emit if journal else None, **speech) if consultation or os.getenv('ASR_MODE', 'streaming') == 'streaming' else QwenSTT()
         session = AgentSession(
             stt=speech_to_text,
             llm=openai.LLM.with_deepseek(
@@ -103,7 +108,7 @@ async def persona_voice(ctx: JobContext) -> None:
                 turn_detection="vad",
                 endpointing={"min_delay": profile['endpoint_min'], "max_delay": profile['endpoint_max']},
                 interruption={"enabled": True, "min_duration": 0.35},
-                preemptive_generation={"enabled": preflight_enabled(), "preemptive_tts": False,
+                preemptive_generation={"enabled": preflight_enabled() and route != 'pipeline-mimo-all', "preemptive_tts": False,
                                        "max_retries": 2, "max_speech_duration": 10.0},
             ),
         )
