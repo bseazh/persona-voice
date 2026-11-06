@@ -25,3 +25,11 @@
 ## 修改与验证
 
 修改 services/agent/procurement_knowledge.py；测试 tests/test_procurement_knowledge.py。8 项测试通过，包括原始输入、返回字符串一致性、哈希、关联编号和取消不产生成功输出。未拨打新电话。
+
+## 上线后真实集成验证
+
+提交 `0f51d84`，部署运行 `42180892508` 成功。在腾讯云运行现有 probe-qwen-openviking.py，真实 Qwen 发起工具调用、真实 OpenViking 查询，并返回 28 个音频帧，无模型错误。此测试为文字触发、音频丢弃输出，不是电话或麦克风验收。
+
+新增日志已捕获并核验同一 tool_id：`d836326525ff4e09a8dde999de7c5b31`。输入 query 为 `Phoenix 2100 滚筒筛 筛筒长度 直径 资料版本`。工具耗时 498ms，返回 status=ok，正文含 6.45m / 1.94m 和 December 2017，也包含动力、应用及采购边界。Qwen 最终回答为“根据Terex Ecotec的Phoenix 2100原版手册（2017年12月印刷版），筛筒长度为6.45米，直径为1.94米。”
+
+完整新日志本地保存在 `BigApple输出/采购知识库接入/qwen-openviking-1793950115729624425.json`，实际工具输出保存在 knowledge.tool_output.output，非摘要重建。
