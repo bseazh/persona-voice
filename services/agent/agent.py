@@ -63,6 +63,7 @@ async def persona_voice(ctx: JobContext) -> None:
     speech={}
     route='pipeline'
     business_instructions=None
+    configuration={}
     if journal:
         try:
             consultation_id = None
@@ -130,11 +131,14 @@ async def persona_voice(ctx: JobContext) -> None:
                 else VoiceController(ctx,session,journal)) if journal else None
     if controller:
         controller.voice_route = route
+        if isinstance(controller,RealtimeController):
+            controller.update_phone_deadline(configuration.get('phone_remaining_seconds'))
         controller.attach()
     knowledge=None
     if business_instructions and route=='qwen-realtime':
         from procurement_knowledge import ProcurementKnowledge
         knowledge=ProcurementKnowledge(audit=journal.emit)
+        ctx.add_shutdown_callback(knowledge.aclose)
     assistant=RealtimeAssistant(business_instructions,knowledge) if route in ('qwen-realtime','doubao-realtime','baidu-realtime') else ConsultationAssistant(controller,business_instructions) if controller else PersonaAssistant()
     await session.start(agent=assistant, room=ctx.room)
     if route == 'baidu-realtime':

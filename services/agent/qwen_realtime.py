@@ -54,6 +54,7 @@ class QwenSocket:
         self.router=ResponseRouter(audit)
         self.ready=collections.deque()
         self.on_transcript=None
+        self.audio_response_id=None
 
     async def send_str(self, data):
         e=json.loads(data); t=e['type']
@@ -94,9 +95,13 @@ class QwenSocket:
         elif t=='input_audio_buffer.clear':
             self.resampler=rtc.AudioResampler(24000,16000,num_channels=1)
         await self.ws.send_str(json.dumps(e,ensure_ascii=False))
+        if self.audit and t=='conversation.item.create' and e.get('item',{}).get('type')=='function_call_output':
+            self.audit('wire_tool_output',{'at':time.time(),'call_id':e['item'].get('call_id'),
+                'characters':len(e['item'].get('output',''))})
         if self.audit and t in ('session.update', 'response.create'):
             payload=e.get('session',e.get('response',{}))
             self.audit('wire_request',{'type':t,'fields':list(payload),
+                'at':time.time(),
                 'tool_names':[x.get('name') for x in payload.get('tools',[])],
                 'tool_choice':payload.get('tool_choice')})
 
@@ -112,6 +117,13 @@ class QwenSocket:
 
     def translate(self,e):
         original=e['type']
+        if self.audit and original=='response.function_call_arguments.done':
+            self.audit('wire_tool_arguments_done',{'at':time.time(),'response_id':e.get('response_id'),'call_id':e.get('call_id')})
+        if original=='response.created':self.audio_response_id=None
+        if (self.audit and original=='response.audio.delta' and e.get('response_id')==self.router.active
+                and not self.router.muted and not self.router.cancelling and self.audio_response_id!=e.get('response_id')):
+            self.audio_response_id=e.get('response_id')
+            self.audit('wire_first_audio',{'at':time.time(),'response_id':self.audio_response_id})
         if self.audit and original=='session.updated':
             self.audit('wire_session',{'tool_names':[x.get('name') for x in e.get('session',{}).get('tools',[])]})
         if original=='input_audio_buffer.speech_started':
@@ -177,7 +189,7 @@ class QwenRealtime(realtime.RealtimeModel):
     def mute_responses(self):
         for socket in self.transport.sockets:socket.router.muted=True
 
-    async def farewell(self):
+    async def farewell(self, reason=None):
         """A bounded, separate native-realtime utterance; no standalone TTS.
 
         Buffer only this short final utterance so the transcript saved for it
@@ -190,7 +202,8 @@ class QwenRealtime(realtime.RealtimeModel):
                     'modalities':['text','audio'],'voice':'longanqian','turn_detection':None,
                     'instructions':'你是中文AI助手。对话已结束。只说一句简短告别，不提问、不解释、不调用工具。'}})
                 await ws.send_json({'type':'conversation.item.create','item':{
-                    'type':'message','role':'user','content':[{'type':'input_text','text':'请简短告别，说：好的，再见。'}]}})
+                    'type':'message','role':'user','content':[{'type':'input_text','text':
+                        '请简短告别，说：通话时间快到了，我们先聊到这里，再见。' if reason=='duration_limit' else '请简短告别，说：好的，再见。'}]}})
                 await ws.send_json({'type':'response.create'})
                 frames=[]
                 transcript=''

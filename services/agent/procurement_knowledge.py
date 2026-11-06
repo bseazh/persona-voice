@@ -41,21 +41,37 @@ def scoped(uri, scope):
     return isinstance(uri, str) and (uri == scope or uri.startswith(scope+'/')) and '..' not in uri.split('/') and '%' not in uri
 
 
-def normalize(data, scope):
+def normalize(data, scope, query=''):
     if not isinstance(data, dict) or data.get('status') != 'ok':
         raise ValueError('invalid_provider_response')
     result = data.get('result') or {}
     if not isinstance(result, dict) or not isinstance(result.get('resources', []), list):
         raise ValueError('invalid_provider_response')
+    candidates=result.get('resources', [])
+    # Prefer the requested model's document, not incidental mentions of it in
+    # another model's body. Comparisons retain one document for each model.
+    compact=re.sub(r'\s+','',query).lower()
+    families={'phoenix':('1600','2100','3300'),'tss':('390',),'tds':('820','825')}
+    wanted=[family+number for family,numbers in families.items() if family in compact
+            for number in numbers if re.search(r'(?<!\d)'+number+r'(?!\d)',query)]
+    preferred=[]
+    for model in wanted:
+        matching=[item for item in candidates if isinstance(item,dict)
+                  and scoped(item.get('uri'),scope) and isinstance(item.get('content'),str)
+                  and len(item['content'].strip())>=80
+                  and model in re.sub(r'[^a-z0-9]','',item['uri'].lower())]
+        matching.sort(key=lambda item: not any(part in item['uri'] for part in ('/procurement-demo/','/procurement-expansion/')))
+        if matching:preferred.extend(matching[:1] if len(wanted)>1 or any(part in matching[0]['uri'] for part in ('/procurement-demo/','/procurement-expansion/')) else matching[:2])
+    if wanted and all(any(model in re.sub(r'[^a-z0-9]','',item['uri'].lower()) for item in preferred) for model in wanted):candidates=preferred
     hits = []
-    for item in result.get('resources', []):
+    for item in candidates:
         if not isinstance(item, dict) or not scoped(item.get('uri'), scope):
             continue
         content = item.get('content')
         # An L0 abstract without source text is not evidence for a product parameter.
         if not isinstance(content, str) or not content.strip():
             continue
-        hits.append({'uri': item['uri'], 'content': content[:2200],
+        hits.append({'uri': item['uri'], 'content': content[:1600],
                      'content_sha256': hashlib.sha256(content.encode()).hexdigest(),
                      'source_type': 'public_reference_demo'})
         if len(hits) == 3:
@@ -71,6 +87,10 @@ class ProcurementKnowledge:
         self.scope = os.getenv('OPENVIKING_PROCUREMENT_URI', '').rstrip('/')
         self.agent_id = os.getenv('OPENVIKING_AGENT_ID', '')
         self.calls = 0
+        self.client = None
+
+    async def aclose(self):
+        if self.client is not None:await self.client.close()
 
     async def search(self, query):
         started = time.monotonic()
@@ -83,15 +103,16 @@ class ProcurementKnowledge:
             return {'status': 'session_limit', 'results': []}
         expanded = retrieval_query(query)
         self.audit('knowledge.started', {'request_id': request_id, 'query': query,
-            'retrieval_query': expanded, 'scope': self.scope})
+            'retrieval_query': expanded, 'scope': self.scope, 'at': time.time()})
         outcome = {'status': 'not_configured', 'results': []}
         try:
             if self.key and self.scope.startswith('viking://resources/') and scoped(self.scope, self.scope):
                 headers = {'Authorization': 'Bearer '+self.key}
                 if self.agent_id:
                     headers['X-OpenViking-Agent'] = self.agent_id
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as client:
-                    async with client.post(BASE_URL+'/api/v1/search/find', headers=headers, allow_redirects=False,
+                if self.client is None or self.client.closed:
+                    self.client=aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5))
+                async with self.client.post(BASE_URL+'/api/v1/search/find', headers=headers, allow_redirects=False,
                         json={'query': expanded, 'target_uri': self.scope, 'context_type': 'resource',
                               'limit': 3, 'level': 2, 'read_content': True}) as response:
                         if response.status != 200:
@@ -102,18 +123,22 @@ class ProcurementKnowledge:
                                 raw.extend(chunk)
                                 if len(raw) > 256000:
                                     raise ValueError('response_too_large')
-                            outcome = normalize(json.loads(raw), self.scope)
+                            outcome = normalize(json.loads(raw), self.scope, expanded)
         except asyncio.CancelledError:
             self.audit('knowledge.cancelled', {'request_id': request_id})
             raise
         except (aiohttp.ClientError, TimeoutError, ValueError, TypeError):
             outcome = {'status': 'unavailable', 'results': []}
         outcome['request_id'] = request_id
-        self.audit('knowledge.completed', {**outcome, 'elapsed_ms': round((time.monotonic()-started)*1000)})
+        self.audit('knowledge.completed', {**outcome, 'elapsed_ms': round((time.monotonic()-started)*1000), 'at':time.time()})
         return outcome
 
     def tool(self):
         @function_tool(name='search_procurement_knowledge', description='检索本项目允许公开的采购演示资料。涉及产品型号、配置、技术参数时使用，不能用来猜测采购方未知需求。')
         async def search_procurement_knowledge(query: str) -> str:
-            return json.dumps(await self.search(query), ensure_ascii=False)
+            outcome=await self.search(query)
+            # Full hashes/request metadata remain in audit; the model only
+            # needs source identities and evidence to continue speaking.
+            return json.dumps({'status':outcome['status'],'results':[
+                {'uri':r['uri'],'content':r['content']} for r in outcome.get('results',[])]},ensure_ascii=False)
         return search_procurement_knowledge

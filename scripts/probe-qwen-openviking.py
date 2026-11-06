@@ -53,7 +53,7 @@ async def main():
             if any(m['role']=='assistant' and m['text'] for m in messages) and sink.frames:break
             await asyncio.sleep(.2)
     finally:
-        await session.aclose();await model.aclose()
+        await session.aclose();await model.aclose();await knowledge.aclose()
     hits=[e for e in events if e['kind']=='knowledge.completed' and e['payload']['status']=='ok']
     answer=next((m['text'] or '' for m in reversed(messages) if m['role']=='assistant'),'')
     dimensions=any(x in answer for x in ('6.45','六点四五')) and any(x in answer for x in ('1.94','一点九四'))

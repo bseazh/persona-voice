@@ -15,6 +15,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 let initialized: Promise<void> | undefined;
 const digest = (s: string) => createHash("sha256").update(s).digest();
+async function phoneRemaining(id: string) {
+  const r = await db.query(`SELECT GREATEST(0,180-EXTRACT(EPOCH FROM (now()-COALESCE(
+    (SELECT to_timestamp((payload->>'at')::double precision) FROM consult_events
+     WHERE session_id=s.id AND kind='phone.state' AND payload->>'state'='connected'
+     ORDER BY seq LIMIT 1),s.created_at)))) AS remaining
+    FROM consult_sessions s WHERE s.id=$1`,[id]);
+  return Number(r.rows[0]?.remaining || 0);
+}
 export async function POST(req: NextRequest) {
   const secret = process.env.CONSULTATION_AGENT_SECRET || "";
   if (
@@ -75,6 +83,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           ...found.rows[0],
+          phone_remaining_seconds: found.rows[0].mode === 'phone' ? await phoneRemaining(found.rows[0].id) : null,
           business_instructions: found.rows[0].template?.id === procurementId ? procurementInstructions(found.rows[0].template.project) : null,
           speech: { key: speech.key, workspace: speech.workspace, voice: speech.voice },
         },
@@ -100,6 +109,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         ending: s.voice_state === "ending",
         closed: s.status === "closed",
+        phone_remaining_seconds: s.mode === 'phone' ? await phoneRemaining(s.id) : null,
       });
     if (!/^[0-9a-f-]{36}$/.test(b.event_id)) throw Error("event_id");
     const client = await db.connect();

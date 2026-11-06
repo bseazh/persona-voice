@@ -26,7 +26,18 @@ class RealtimeController(VoiceController):
         self.route=getattr(model,'route','qwen-realtime')
         self.end_task=None
         self.close_lock=asyncio.Lock()
+        self.phone_deadline=None
+        self.end_reason=None
         model.transport.on_transcript=self.transcript
+
+    def update_phone_deadline(self, remaining):
+        if isinstance(remaining,(int,float)) and not isinstance(remaining,bool) and 0 <= remaining <= 180:
+            deadline=time.monotonic()+remaining
+            # A delayed heartbeat must never extend the phone safety deadline.
+            self.phone_deadline=min(self.phone_deadline,deadline) if self.phone_deadline is not None else deadline
+
+    def phone_wrapup_due(self):
+        return self.phone_deadline is not None and time.monotonic() >= self.phone_deadline-40
 
     def benchmark_config(self):
         if self.route=='baidu-realtime':
@@ -44,7 +55,9 @@ class RealtimeController(VoiceController):
         return {'stage':'qwen-duplex-v1','route':'qwen-realtime',
             'model':MODEL,'voice':'longanqian','input_sample_rate':16000,
             'output_sample_rate':24000,'server_vad_silence_ms':500,
-            'endpoint':'agent_room_output_not_handset','measurement_version':2,
+            'endpoint':'agent_room_output_not_handset','measurement_version':3,
+            'phone_wrapup_reserve_seconds':40 if self.phone_deadline is not None else None,
+            'wire_phase_timestamps':True,
             'separate_asr_llm_tts_metrics':False,'preemptive_generation':False}
 
     def transcript(self,text):
@@ -52,6 +65,7 @@ class RealtimeController(VoiceController):
 
     def request_end(self,reason):
         if self.finishing or self.closed:return
+        self.end_reason=reason
         if self.route=='baidu-realtime':
             self.finishing=True
             self.journal.emit('ending',{'reason':reason,'route':self.route,'farewell':'not_requested_unsupported'})
@@ -61,7 +75,7 @@ class RealtimeController(VoiceController):
         self.ending_requested=True
         # Gate provider output synchronously, before the next audio delta can
         # race with the async cancellation and goodbye work.
-        self.model.mute_responses()
+        if reason!='phone_duration_limit':self.model.mute_responses()
         self.session.input.set_audio_enabled(False)
         self.journal.emit('ending',{'reason':reason,'route':self.route})
         self.end_task=asyncio.create_task(self._finish())
@@ -84,26 +98,37 @@ class RealtimeController(VoiceController):
     async def _finish(self):
         reason='farewell_played'
         try:
-            await asyncio.wait_for(self.session.interrupt(force=True),5)
-            text,frames=await self.model.farewell()
-            async def audio():
-                for frame in frames:yield frame
-            handle=self.session.say(text,audio=audio())
-            await asyncio.wait_for(handle.wait_for_playout(),15)
-            if handle.interrupted or handle.exception():raise RuntimeError('farewell_not_played')
-            self.journal.emit('farewell_played',{'text':text,'provider':getattr(self.model,'provider',MODEL)})
+            async with asyncio.timeout(25 if self.end_reason=='phone_duration_limit' else 40):
+                if self.end_reason=='phone_duration_limit':
+                    speech=getattr(self.session,'current_speech',None)
+                    if speech:
+                        try:await asyncio.wait_for(asyncio.shield(speech.wait_for_playout()),5)
+                        except TimeoutError:self.journal.emit('wrapup_drain_timeout',{'seconds':5})
+                self.model.mute_responses()
+                await asyncio.wait_for(self.session.interrupt(force=True),5)
+                if self.route=='qwen-realtime' and self.end_reason=='phone_duration_limit':
+                    text,frames=await self.model.farewell(reason='duration_limit')
+                else:text,frames=await self.model.farewell()
+                async def audio():
+                    for frame in frames:yield frame
+                handle=self.session.say(text,audio=audio())
+                await asyncio.wait_for(handle.wait_for_playout(),15)
+                if handle.interrupted or handle.exception():raise RuntimeError('farewell_not_played')
+                self.journal.emit('farewell_played',{'text':text,'provider':getattr(self.model,'provider',MODEL)})
         except asyncio.CancelledError:
             raise
         except Exception as error:
             reason='farewell_playback_failed'
             self.journal.emit('farewell_failed',{'error_type':type(error).__name__})
-        await self.close_room(reason)
+        await self.close_room('phone_duration_limit_farewell_played' if reason=='farewell_played' and self.end_reason=='phone_duration_limit' else reason)
 
     async def watch(self):
         while not self.closed:
             await asyncio.sleep(2)
+            if self.phone_wrapup_due():self.request_end('phone_duration_limit')
             try:
-                status=await self.journal.request('heartbeat')
+                status=await asyncio.wait_for(self.journal.request('heartbeat'),3)
+                self.update_phone_deadline(status.get('phone_remaining_seconds'))
                 if status['closed']:
                     await self.close_room('operator_force_end')
                     return
@@ -124,7 +149,7 @@ class RealtimeController(VoiceController):
             # Release the owned phone call before deleting the room, since
             # room teardown can start the LiveKit job's shutdown callbacks.
             try:
-                release=await asyncio.wait_for(self.journal.request('release'),12)
+                release=await asyncio.wait_for(self.journal.request('release'),8 if self.end_reason=='phone_duration_limit' else 12)
                 self.journal.emit('phone_release',release)
             except Exception:
                 self.journal.emit('phone_release',{'confirmed':False,'error':'release_unconfirmed'})

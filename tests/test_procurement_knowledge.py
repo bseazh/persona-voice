@@ -10,6 +10,15 @@ from procurement_knowledge import ProcurementKnowledge, normalize, retrieval_que
 SCOPE = 'viking://resources/procurement_demo'
 
 class EvidenceTest(unittest.TestCase):
+    def test_compact_evidence_keeps_each_requested_model_and_skips_title(self):
+        resources=[{'uri':SCOPE+'/TDS825/title','content':'TDS 825'},
+            {'uri':SCOPE+'/procurement-expansion/tds820/spec','content':'TDS 820 '+('2000 mm '*40)},
+            {'uri':SCOPE+'/procurement-expansion/tds825/spec','content':'TDS 825 '+('2500 mm '*40)}]
+        single=normalize({'status':'ok','result':{'resources':resources}},SCOPE,'TDS 825 轴长')
+        self.assertEqual(len(single['results']),1)
+        self.assertIn('2500',single['results'][0]['content'])
+        comparison=normalize({'status':'ok','result':{'resources':resources}},SCOPE,'TDS 820 与825')
+        self.assertEqual(len(comparison['results']),2)
     def test_fragmented_model_and_equipment_are_search_candidates(self):
         for query in ('phone next 1600 长宽高', 'P H O E N I X 1600 筛筒直径', '1600 筛筒长和直径'):
             result = retrieval_query(query)

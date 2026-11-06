@@ -35,6 +35,7 @@ async def main():
         print(json.dumps({k: v for k, v in entry.items() if k != 'response'}, ensure_ascii=False), flush=True)
     target = ROOT / 'BigApple输出/采购知识库扩充/retrieval-validation.json'
     target.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding='utf-8')
+    await client.aclose()
     if not all(r['passed'] for r in results):
         raise SystemExit(1)
 

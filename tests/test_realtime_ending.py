@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 from types import SimpleNamespace
 import unittest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'services/agent'))
 from realtime_voice import RealtimeController
@@ -51,6 +51,33 @@ class EndingTests(unittest.IsolatedAsyncioTestCase):
         c.transcript('不要挂断电话。')
         self.assertFalse(c.finishing)
         self.assertIsNone(c.end_task)
+
+    async def test_phone_deadline_never_extended_and_web_not_limited(self):
+        c=self.setup_controller(AsyncMock())
+        self.assertFalse(c.phone_wrapup_due())
+        with patch('realtime_voice.time.monotonic',return_value=100):
+            c.update_phone_deadline(180)
+            self.assertFalse(c.phone_wrapup_due())
+        with patch('realtime_voice.time.monotonic',return_value=241):
+            c.update_phone_deadline(180)
+            self.assertEqual(c.phone_deadline,280)
+            self.assertTrue(c.phone_wrapup_due())
+        c.update_phone_deadline(None)
+        c.update_phone_deadline(-1)
+        self.assertEqual(c.phone_deadline,280)
+
+    async def test_timed_end_drains_then_farewell_before_release(self):
+        played=asyncio.Event()
+        c=self.setup_controller(AsyncMock())
+        c.session.current_speech=SimpleNamespace(wait_for_playout=played.wait)
+        c.request_end('phone_duration_limit')
+        await asyncio.sleep(.01)
+        c.model.farewell.assert_not_awaited()
+        self.delete.assert_not_awaited()
+        played.set()
+        await c.end_task
+        c.model.farewell.assert_awaited_once_with(reason='duration_limit')
+        self.assertLess(self.events.index('farewell_played'),self.events.index('room_release'))
 
 
 if __name__=='__main__':unittest.main()
