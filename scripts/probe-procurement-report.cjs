@@ -13,9 +13,9 @@ const p=context.exports;
   fs.mkdirSync(output,{recursive:true});
   fs.writeFileSync(path.join(output,'procurement-business-instructions.txt'),p.procurementInstructions(input.template.project),{mode:0o600});
   if(!process.env.DEEPSEEK_API_KEY)throw Error('Missing server-side DeepSeek key');
-  const response=await fetch('https://api.deepseek.com/chat/completions',{
+  const response=await fetch('https://api.deepseek.com/v1/chat/completions',{
     method:'POST',headers:{Authorization:`Bearer ${process.env.DEEPSEEK_API_KEY}`,'Content-Type':'application/json'},
-    body:JSON.stringify({model:'deepseek-chat',response_format:{type:'json_object'},messages:[
+    body:JSON.stringify({model:process.env.LLM_MODEL || 'deepseek-chat',max_tokens:3000,temperature:0.3,response_format:{type:'json_object'},messages:[
       {role:'system',content:p.procurementReportPrompt},
       {role:'user',content:JSON.stringify({project:input.template.project,messages:input.messages})}
     ]}),signal:AbortSignal.timeout(60000)
@@ -23,6 +23,7 @@ const p=context.exports;
   if(!response.ok)throw Error('DeepSeek HTTP '+response.status);
   const result=await response.json();
   const raw=JSON.parse(result.choices[0].message.content);
+  fs.writeFileSync(path.join(output,'procurement-report-last-raw.json'),JSON.stringify(raw,null,2),{mode:0o600});
   const report=p.groundedProcurementReport(raw,input.template.project,input.messages);
   const filename=path.join(output,`procurement-report-regression-${Date.now()}.json`);
   fs.writeFileSync(filename,JSON.stringify({input_session:input.id,raw,report,usage:result.usage},null,2),{mode:0o600});

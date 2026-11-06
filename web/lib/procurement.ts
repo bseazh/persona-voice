@@ -48,21 +48,24 @@ suggestions最多3项，每项不超过100字，只写今后可做的动作，�
 type ReportMessage = { id: string; role: string; text: string; interrupted?: boolean };
 export function groundedProcurementReport(raw: unknown, project: Record<string,string>, messages: ReportMessage[]) {
   const p = raw as { observations?: {kind: string; source: string; quote: string}[]; suggestions?: string[] };
-  if (!p || !Array.isArray(p.observations) || p.observations.length > 6 || !Array.isArray(p.suggestions) || p.suggestions.length > 3) throw Error('采购报告证据格式无效');
+  if (!p || !Array.isArray(p.observations) || !Array.isArray(p.suggestions)) throw Error('采购报告证据格式无效');
   const labels: Record<string,string> = {project:'采购方项目原文',user:'对方原话（不自动视为承诺）',assistant:'助手发言（非供应商确认）'};
-  const evidence = p.observations.map(o => {
-    if (!o || !labels[o.kind] || typeof o.source !== 'string' || typeof o.quote !== 'string' || !o.quote.trim() || o.quote.length > 180) throw Error('采购报告证据格式无效');
+  const evidence = p.observations.slice(0,6).map(o => {
+    if (!o || !labels[o.kind] || typeof o.source !== 'string' || typeof o.quote !== 'string' || !o.quote.trim()) throw Error('采购报告证据格式无效');
     const message = messages.find(m => m.id === o.source && m.role === o.kind);
     const source = o.kind === 'project' && Object.hasOwn(projectFields,o.source) ? project[o.source] : message && !message.interrupted ? message.text : '';
     if (!source) throw Error('采购报告来源无法核对');
     // Providers sometimes paraphrase despite the verbatim instruction. Never
     // publish that paraphrase: render the source itself and record the fallback.
     if (!source.includes(o.quote)) return {...o,quote:source.slice(0,180),source_excerpt_fallback:true};
-    return {...o,source_excerpt_fallback:false};
+    return {...o,quote:o.quote.slice(0,180),source_excerpt_fallback:false};
   });
   // Recommendations have no authority to introduce a number or a promised action.
-  const suggestions = p.suggestions.map(s => {
-    if (typeof s !== 'string' || s.length > 100 || /\d|[一二三四五六七八九十百千万两]+[吨天月年日小时万元]|已同意|已承诺|将提供|待提供|责任方|截止/.test(s)) throw Error('采购报告建议含未核验数值或承诺');
+  const sourceText = [...Object.values(project),...messages.filter(m=>!m.interrupted).map(m=>m.text)].join('\n');
+  const quantities = (text: string) => (text.match(/\d+(?:\.\d+)?(?:\s*(?:毫米|厘米|千瓦|万元|小时|吨|米|天|月|年|日|元|台|套|个|kW|mm|Nm|%))?|[一二三四五六七八九十百千万两]+(?:吨|天|月|年|日|小时|万元)/g) || []).map(n=>n.replace(/\s/g,''));
+  const knownNumbers = new Set(quantities(sourceText));
+  const suggestions = p.suggestions.slice(0,3).map(s => {
+    if (typeof s !== 'string' || s.length > 100 || /已同意|已承诺|将提供|待提供|责任方|截止/.test(s) || quantities(s).some(n=>!knownNumbers.has(n))) throw Error('采购报告建议含未核验数值或承诺');
     return '建议（未形成双方承诺）：' + s;
   });
   return {

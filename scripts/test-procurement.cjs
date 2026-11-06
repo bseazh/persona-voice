@@ -27,4 +27,6 @@ assert.throws(()=>p.groundedProcurementReport({observations:[{kind:'assistant',s
 assert.throws(()=>p.groundedProcurementReport({observations:[],suggestions:['供应商待提供十五吨的报价']},t.project,messages));
 assert.throws(()=>p.groundedProcurementReport({observations:[{kind:'project',source:'capacity',quote:'十五吨'}],suggestions:[]},t.project,messages));
 assert.doesNotMatch(p.procurementReportPrompt,/十五吨/);
+assert.match(p.groundedProcurementReport({observations:[],suggestions:['核对TSS 390配置']},{project:'TSS 390'},[]).next_steps[0],/390/);
+assert.throws(()=>p.groundedProcurementReport({observations:[],suggestions:['按390吨询价']},{project:'TSS 390'},[]));
 console.log('Procurement schema: required fields, type/size limits, allowlist, template isolation passed');
