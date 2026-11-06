@@ -131,7 +131,11 @@ async def persona_voice(ctx: JobContext) -> None:
     if controller:
         controller.voice_route = route
         controller.attach()
-    assistant=RealtimeAssistant(business_instructions) if route in ('qwen-realtime','doubao-realtime','baidu-realtime') else ConsultationAssistant(controller,business_instructions) if controller else PersonaAssistant()
+    knowledge=None
+    if business_instructions and route=='qwen-realtime':
+        from procurement_knowledge import ProcurementKnowledge
+        knowledge=ProcurementKnowledge(audit=journal.emit)
+    assistant=RealtimeAssistant(business_instructions,knowledge) if route in ('qwen-realtime','doubao-realtime','baidu-realtime') else ConsultationAssistant(controller,business_instructions) if controller else PersonaAssistant()
     await session.start(agent=assistant, room=ctx.room)
     if route == 'baidu-realtime':
         return  # Lite starts from real user audio; do not issue unsupported response.create.
