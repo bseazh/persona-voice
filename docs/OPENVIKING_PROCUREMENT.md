@@ -68,7 +68,9 @@ CLI 用于配置、资料导入与检查；实时通话进程直接调用官方 
 - TSS 390：厂商 PDF 文件名标注 2026；368 kW 为发动机配置，不能误写成电机。
 - Mixed Waste：混合废物处理概念、破碎与筛分边界。
 
-中文入库内容与 `BigApple输出/采购知识库接入/采购演示知识资料.pdf` 一致；厂商原版 PDF 保存在该目录的 `演示资料/` 下。`scripts/render-procurement-knowledge.py` 可从已审阅 Markdown 重建中文 PDF。入库采用可追溯的中文 Markdown，原版 PDF 用于核验，不重复导入同一内容以免混淆版本。
+首次中文入库内容与 `BigApple输出/采购知识库接入/采购演示知识资料.pdf` 一致；`scripts/render-procurement-knowledge.py` 可重建该中文 PDF。
+
+2026-11-06 已扩充为 6 个型号、6 份原版 PDF（24 个 PDF 页面）和 7 份中文资料。新增 Phoenix 1600、Phoenix 3300、TDS 820、TDS 825。四份新增摘要与六份完整原版均已完成云端解析和索引，失败文件为零，分别位于同一检索范围下的 `procurement-expansion` 与 `official_pdf_v1`。原版与摘要属于同一来源，不能当成不同产品或独立佐证。完整目录、版本、提问对照与验收见 `docs/PROCUREMENT_CORPUS.md`。
 
 官方接口依据：
 - https://docs.volcengine.com/docs/84313/2374483 （find）

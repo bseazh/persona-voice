@@ -5,11 +5,22 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'services/agent'))
-from procurement_knowledge import ProcurementKnowledge, normalize
+from procurement_knowledge import ProcurementKnowledge, normalize, retrieval_query
 
 SCOPE = 'viking://resources/procurement_demo'
 
 class EvidenceTest(unittest.TestCase):
+    def test_fragmented_model_and_equipment_are_search_candidates(self):
+        for query in ('phone next 1600 长宽高', 'P H O E N I X 1600 筛筒直径', '1600 筛筒长和直径'):
+            result = retrieval_query(query)
+            self.assertTrue(result.startswith(query))
+            self.assertIn('候选型号：Phoenix 1600', result)
+            self.assertIn('需核对原意', result)
+
+    def test_numbers_alone_and_other_models_are_not_rewritten(self):
+        for query in ('1600', '输送带宽1600毫米', 'TDS 825 轴长', '筛筒16000毫米'):
+            self.assertEqual(retrieval_query(query), query)
+
     def test_rejects_outside_scope_and_abstract_only(self):
         result = normalize({'status':'ok','result':{'resources':[
             {'uri':SCOPE+'-private/file','content':'secret'},
