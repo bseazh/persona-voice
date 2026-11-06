@@ -54,7 +54,8 @@ class RealtimeController(VoiceController):
                 'separate_asr_llm_tts_metrics':False,'preemptive_generation':False}
         return {'stage':'qwen-duplex-v1','route':'qwen-realtime',
             'model':MODEL,'voice':'longanqian','input_sample_rate':16000,
-            'output_sample_rate':24000,'server_vad_silence_ms':500,
+            'output_sample_rate':24000,'turn_mode':self.model.turn_mode,
+            'server_vad_silence_ms':500 if self.model.turn_mode=='server_vad' else None,
             'endpoint':'agent_room_output_not_handset','measurement_version':3,
             'phone_wrapup_reserve_seconds':40 if self.phone_deadline is not None else None,
             'wire_phase_timestamps':True,

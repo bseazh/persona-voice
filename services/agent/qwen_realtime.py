@@ -45,8 +45,9 @@ def session_payload(source):
 
 
 class QwenSocket:
-    def __init__(self, ws, audit=None):
+    def __init__(self, ws, audit=None, turn_mode='server_vad'):
         self.ws, self.audit = ws, audit
+        self.turn_mode = turn_mode
         self.resampler=rtc.AudioResampler(24000,16000,num_channels=1)
         self.pending=collections.deque()
         self.has_user=False
@@ -64,6 +65,10 @@ class QwenSocket:
         if t=='input_audio_buffer.append' and self.router.muted:return
         if t=='session.update':
             e['session']=session_payload(e['session'])
+            turn=e['session'].get('turn_detection')
+            if turn is not None and self.turn_mode=='smart_turn_v2':
+                # Keep provider-specific modes out of the OpenAI SDK schema.
+                e['session']['turn_detection']={'type':'smart_turn_v2','threshold':turn.get('threshold',.5)}
         elif t=='input_audio_buffer.append':
             pcm=base64.b64decode(e['audio'])
             frame=rtc.AudioFrame(data=pcm,sample_rate=24000,num_channels=1,samples_per_channel=len(pcm)//2)
@@ -103,6 +108,7 @@ class QwenSocket:
             self.audit('wire_request',{'type':t,'fields':list(payload),
                 'at':time.time(),
                 'tool_names':[x.get('name') for x in payload.get('tools',[])],
+                'turn_detection':payload.get('turn_detection'),
                 'tool_choice':payload.get('tool_choice')})
 
     async def receive(self):
@@ -117,6 +123,11 @@ class QwenSocket:
 
     def translate(self,e):
         original=e['type']
+        if original.startswith('conversation.item.ambient_audio_transcription.'):
+            # Ambient/backchannel text must not become a user turn or an end command.
+            if self.audit:self.audit('ambient_audio',{'at':time.time(),'type':original,
+                'item_id':e.get('item_id'),'text':e.get('delta',e.get('transcript',''))})
+            return []
         if self.audit and original=='response.function_call_arguments.done':
             self.audit('wire_tool_arguments_done',{'at':time.time(),'response_id':e.get('response_id'),'call_id':e.get('call_id')})
         if original=='response.created':self.audio_response_id=None
@@ -125,12 +136,14 @@ class QwenSocket:
             self.audio_response_id=e.get('response_id')
             self.audit('wire_first_audio',{'at':time.time(),'response_id':self.audio_response_id})
         if self.audit and original=='session.updated':
-            self.audit('wire_session',{'tool_names':[x.get('name') for x in e.get('session',{}).get('tools',[])]})
+            self.audit('wire_session',{'tool_names':[x.get('name') for x in e.get('session',{}).get('tools',[])],
+                'turn_detection':e.get('session',{}).get('turn_detection')})
         if original=='input_audio_buffer.speech_started':
             self.has_user=True
         if original=='conversation.item.input_audio_transcription.completed' and self.on_transcript:
             self.on_transcript(e.get('transcript',''))
-        if original=='input_audio_buffer.speech_stopped':self.server_turn_pending=True
+        if original=='input_audio_buffer.speech_stopped':
+            self.server_turn_pending=e.get('reason')!='turn_invalid'
         if original=='response.created':
             if self.server_turn_pending:
                 self.server_turn_pending=False
@@ -152,6 +165,7 @@ class QwenSocket:
                                        'response.created','response.done'):
             self.audit('realtime_event',{'type':original,'at':time.time(),
                 'response_id':e.get('response',{}).get('id'),
+                'reason':e.get('reason'),
                 'status':e.get('response',{}).get('status')})
         return self.router.feed(e)
 
@@ -159,13 +173,14 @@ class QwenSocket:
 
 
 class QwenTransport:
-    def __init__(self,audit=None):
+    def __init__(self,audit=None,turn_mode='server_vad'):
         self.client=aiohttp.ClientSession()
         self.audit=audit
         self.sockets=[]
         self.on_transcript=None
+        self.turn_mode=turn_mode
     async def ws_connect(self,*,url,headers):
-        socket=QwenSocket(await self.client.ws_connect(url,headers=headers),self.audit)
+        socket=QwenSocket(await self.client.ws_connect(url,headers=headers),self.audit,self.turn_mode)
         socket.on_transcript=lambda text:self.on_transcript(text) if self.on_transcript else None
         self.sockets.append(socket)
         return socket
@@ -174,7 +189,10 @@ class QwenTransport:
 
 class QwenRealtime(realtime.RealtimeModel):
     def __init__(self, *, key=None, audit=None):
-        self.transport=QwenTransport(audit)
+        self.turn_mode=os.getenv('QWEN_TURN_MODE','smart_turn_v2')
+        if self.turn_mode not in ('server_vad','smart_turn_v2'):
+            raise ValueError('QWEN_TURN_MODE must be server_vad or smart_turn_v2')
+        self.transport=QwenTransport(audit,self.turn_mode)
         self.key=key or os.environ['DASHSCOPE_API_KEY']
         super().__init__(model=MODEL,voice='longanqian',
             api_key=self.key,base_url=URL,
