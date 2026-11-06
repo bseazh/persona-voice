@@ -14,4 +14,17 @@ const t=p.procurementTemplate({project:'设备采购验证',scenario:'生活垃�
 assert.equal(t.project.privateBudget,undefined);assert.equal(t.fields.schedule,undefined);
 assert.equal(t.id,'procurement-screening-v1');assert.ok(t.fields.role);
 assert.match(p.procurementInstructions(t.project),/生活垃圾分选/);
+const messages=[{id:'u1',role:'user',text:'请问筛筒直径是多少？'},{id:'a1',role:'assistant',text:'手册写的是直径1.54米。'},{id:'a2',role:'assistant',text:'动力是',interrupted:true}];
+const report=p.groundedProcurementReport({observations:[{kind:'user',source:'u1',quote:'请问筛筒直径是多少？'}],suggestions:['核对设备配置资料']},t.project,messages);
+assert.match(report.summary,/对方原话（不自动视为承诺）/);
+assert.match(report.next_steps[0],/未形成双方承诺/);
+const corrected=p.groundedProcurementReport({observations:[{kind:'user',source:'u1',quote:'十五吨'}],suggestions:[]},t.project,messages);
+assert.doesNotMatch(corrected.summary,/十五吨/);
+assert.match(corrected.summary,/请问筛筒直径是多少/);
+assert.equal(corrected.evidence[0].source_excerpt_fallback,true);
+assert.throws(()=>p.groundedProcurementReport({observations:[{kind:'user',source:'a1',quote:'直径1.54米'}],suggestions:[]},t.project,messages));
+assert.throws(()=>p.groundedProcurementReport({observations:[{kind:'assistant',source:'a2',quote:'动力是'}],suggestions:[]},t.project,messages));
+assert.throws(()=>p.groundedProcurementReport({observations:[],suggestions:['供应商待提供十五吨的报价']},t.project,messages));
+assert.throws(()=>p.groundedProcurementReport({observations:[{kind:'project',source:'capacity',quote:'十五吨'}],suggestions:[]},t.project,messages));
+assert.doesNotMatch(p.procurementReportPrompt,/十五吨/);
 console.log('Procurement schema: required fields, type/size limits, allowlist, template isolation passed');

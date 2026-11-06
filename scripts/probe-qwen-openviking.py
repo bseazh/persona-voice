@@ -28,6 +28,7 @@ async def main():
     parser.add_argument('--question',default='请查资料，Phoenix 2100 滚筒筛的筛筒长度和直径是多少？请说明资料版本。')
     parser.add_argument('--expect',action='append',help='Literal expected answer value; repeat for multiple values')
     parser.add_argument('--turn',action='append',default=[],help='Earlier user turn, replayed sequentially before the final question')
+    parser.add_argument('--instructions-file',help='Use the actual business instructions exported by the web template')
     args=parser.parse_args()
     events=[];messages=[];errors=[]
     def audit(kind,payload):events.append({'kind':kind,'payload':payload})
@@ -42,7 +43,8 @@ async def main():
     @session.on('error')
     def error(event):errors.append(type(event.error).__name__)
     try:
-        await session.start(agent=RealtimeAssistant('你是采购演示助手。按知识工具规则理解型号；信息不足时可以简短澄清，有充分线索后先查工具再回答，不做开场。',knowledge))
+        instructions=Path(args.instructions_file).read_text(encoding='utf-8') if args.instructions_file else '你是采购演示助手。按知识工具规则理解型号；信息不足时可以简短澄清，有充分线索后先查工具再回答，不做开场。'
+        await session.start(agent=RealtimeAssistant(instructions,knowledge))
         for user_turn in [*args.turn,args.question]:
             handle=session.generate_reply(user_input=user_turn)
             await asyncio.wait_for(handle.wait_for_playout(),55)

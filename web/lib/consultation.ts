@@ -9,7 +9,7 @@ import {
   createDecipheriv,
 } from "node:crypto";
 import { NextRequest } from "next/server";
-import { procurementId, procurementFields, procurementInstructions, procurementReportPrompt, projectFields } from "./procurement";
+import { procurementId, procurementFields, procurementInstructions, procurementReportPrompt, projectFields, groundedProcurementReport } from "./procurement";
 
 const globalDB = globalThis as unknown as { consultationDB?: Pool };
 export const db = (globalDB.consultationDB ??= new Pool({
@@ -406,7 +406,7 @@ export async function generateReport(id: string) {
         role: "user",
         content: JSON.stringify({
           project: current.template?.project,
-          facts: current.facts,
+          facts: current.template?.id === procurementId ? undefined : current.facts,
           messages: current.messages.map(
             (m: {
               id: string;
@@ -423,7 +423,9 @@ export async function generateReport(id: string) {
         }),
       },
     ]);
-    const p = result.data;
+    const p = current.template?.id === procurementId
+      ? groundedProcurementReport(result.data, current.template.project || {}, current.messages)
+      : result.data;
     if (
       typeof p.summary !== "string" ||
       p.summary.length > 2000 ||
@@ -432,7 +434,7 @@ export async function generateReport(id: string) {
       typeof p.limitations !== "string"
     )
       throw new UserError("报告格式无效，请重试", 502);
-    const facts = { ...current.facts };
+    const facts = current.template?.id === procurementId ? {} : { ...current.facts };
     const sources = new Set(
       current.messages
         .filter((m: { role: string }) => m.role === "user")
@@ -457,6 +459,7 @@ export async function generateReport(id: string) {
           summary: p.summary,
           next_steps: p.next_steps.slice(0, current.template?.id === procurementId ? 6 : 3),
           limitations: p.limitations,
+          ...(current.template?.id === procurementId ? {evidence: p.evidence} : {}),
         }),
         JSON.stringify(facts),
       ],

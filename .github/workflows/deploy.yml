@@ -52,6 +52,9 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
         working-directory: web
 
+      - name: Test procurement report evidence and template boundaries
+        run: node scripts/test-procurement.cjs
+
       - name: Lint frontend
         run: npm run lint
         working-directory: web
