@@ -5,6 +5,7 @@ import json
 import os
 import re
 import time
+import uuid
 
 import aiohttp
 from livekit.agents import function_tool
@@ -133,12 +134,34 @@ class ProcurementKnowledge:
         self.audit('knowledge.completed', {**outcome, 'elapsed_ms': round((time.monotonic()-started)*1000), 'at':time.time()})
         return outcome
 
+    async def invoke_tool(self, query: str) -> str:
+        """Audit the exact tool boundary, not a reconstruction of model output."""
+        tool_id = uuid.uuid4().hex
+        started = time.monotonic()
+        self.audit('knowledge.tool_input', {
+            'tool_id': tool_id, 'tool': 'search_procurement_knowledge',
+            'at': time.time(), 'input': {'query': query}})
+        try:
+            outcome = await self.search(query)
+            output = json.dumps({'status': outcome['status'], 'results': [
+                {'uri': r['uri'], 'content': r['content']}
+                for r in outcome.get('results', [])]}, ensure_ascii=False)
+            self.audit('knowledge.tool_output', {
+                'tool_id': tool_id, 'request_id': outcome.get('request_id'),
+                'tool': 'search_procurement_knowledge', 'at': time.time(),
+                'elapsed_ms': round((time.monotonic()-started)*1000),
+                'output': output, 'output_sha256': hashlib.sha256(output.encode()).hexdigest()})
+            return output
+        except asyncio.CancelledError:
+            self.audit('knowledge.tool_cancelled', {'tool_id': tool_id, 'at': time.time()})
+            raise
+        except Exception as exc:
+            self.audit('knowledge.tool_failed', {
+                'tool_id': tool_id, 'at': time.time(), 'error_type': type(exc).__name__})
+            raise
+
     def tool(self):
         @function_tool(name='search_procurement_knowledge', description='检索本项目允许公开的采购演示资料。涉及产品型号、配置、技术参数时使用，不能用来猜测采购方未知需求。')
         async def search_procurement_knowledge(query: str) -> str:
-            outcome=await self.search(query)
-            # Full hashes/request metadata remain in audit; the model only
-            # needs source identities and evidence to continue speaking.
-            return json.dumps({'status':outcome['status'],'results':[
-                {'uri':r['uri'],'content':r['content']} for r in outcome.get('results',[])]},ensure_ascii=False)
+            return await self.invoke_tool(query)
         return search_procurement_knowledge
